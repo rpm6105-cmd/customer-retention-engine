@@ -14,16 +14,65 @@ st.set_page_config(page_title="Customer Retention & Growth Engine", layout="wide
 
 st.markdown("""
 <style>
+
+/* Background */
 .stApp {
-    background-color: #F4F6F9;
-    color: #111827;
+    background-color: #F2F5F9;
+    color: #2B2F36;
 }
+
+/* Headings */
 h1, h2, h3, h4 {
-    color: #111827;
+    color: #1E293B;
+    font-weight: 600;
 }
+
+/* Labels */
 label {
-    color: #374151 !important;
+    color: #475569 !important;
+    font-weight: 500;
 }
+
+/* Metric cards */
+div[data-testid="metric-container"] {
+    background: linear-gradient(145deg, #FFFFFF, #EEF2F7);
+    border-radius: 14px;
+    padding: 18px;
+    border: 1px solid #E2E8F0;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+}
+
+/* Dataframe container */
+div[data-testid="stDataFrame"] {
+    background-color: #FFFFFF;
+    border-radius: 12px;
+    padding: 10px;
+    border: 1px solid #E5E7EB;
+}
+
+/* Buttons */
+button {
+    background-color: #2563EB !important;
+    color: white !important;
+    border-radius: 8px !important;
+    border: none !important;
+}
+
+button:hover {
+    background-color: #1D4ED8 !important;
+}
+
+/* Sidebar (if used later) */
+section[data-testid="stSidebar"] {
+    background-color: #E8EDF4;
+}
+
+/* Select boxes */
+div[data-baseweb="select"] > div {
+    background-color: #FFFFFF !important;
+    border-radius: 8px !important;
+}
+
 </style>
 """, unsafe_allow_html=True)
 
