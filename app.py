@@ -9,7 +9,7 @@ from datetime import datetime, date, timedelta
 st.set_page_config(page_title="Customer Retention & Growth Engine", layout="wide")
 
 # =============================
-# UI POLISH
+# COOL SAAS UI THEME
 # =============================
 
 st.markdown("""
@@ -17,8 +17,8 @@ st.markdown("""
 
 /* Background */
 .stApp {
-    background-color: #F2F5F9;
-    color: #2B2F36;
+    background-color: #F3F6FA;
+    color: #1F2937;
 }
 
 /* Headings */
@@ -33,23 +33,6 @@ label {
     font-weight: 500;
 }
 
-/* Metric cards */
-div[data-testid="metric-container"] {
-    background: linear-gradient(145deg, #FFFFFF, #EEF2F7);
-    border-radius: 14px;
-    padding: 18px;
-    border: 1px solid #E2E8F0;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
-}
-
-/* Dataframe container */
-div[data-testid="stDataFrame"] {
-    background-color: #FFFFFF;
-    border-radius: 12px;
-    padding: 10px;
-    border: 1px solid #E5E7EB;
-}
-
 /* Buttons */
 button {
     background-color: #2563EB !important;
@@ -57,20 +40,28 @@ button {
     border-radius: 8px !important;
     border: none !important;
 }
-
 button:hover {
     background-color: #1D4ED8 !important;
 }
 
-/* Sidebar (if used later) */
-section[data-testid="stSidebar"] {
-    background-color: #E8EDF4;
+/* Metric cards */
+div[data-testid="metric-container"] {
+    background: #FFFFFF;
+    border-radius: 14px;
+    padding: 18px;
+    border: 1px solid #E2E8F0;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
 }
 
-/* Select boxes */
-div[data-baseweb="select"] > div {
+/* Fix DataFrame dark issue */
+[data-testid="stDataFrame"] {
     background-color: #FFFFFF !important;
-    border-radius: 8px !important;
+    border-radius: 12px;
+    border: 1px solid #E2E8F0;
+}
+[data-testid="stDataFrame"] table {
+    background-color: #FFFFFF !important;
+    color: #1E293B !important;
 }
 
 </style>
@@ -122,7 +113,7 @@ if not st.session_state.logged_in:
 
     with col1:
         st.subheader("🚀 Demo Access")
-        demo_user = st.text_input("Username")
+        demo_user = st.text_input("Username", key="demo_user")
         demo_pass = st.text_input("Password", type="password", key="demo_password")
 
         if st.button("Login Demo"):
@@ -136,10 +127,10 @@ if not st.session_state.logged_in:
 
     with col2:
         st.subheader("📂 Use My CSV (Premium)")
-        option = st.radio("Select", ["Login", "Sign Up"])
+        option = st.radio("Select", ["Login", "Sign Up"], key="premium_option")
 
         if option == "Login":
-            email = st.text_input("Email")
+            email = st.text_input("Email", key="login_email")
             password = st.text_input("Password", type="password", key="premium_password")
 
             if st.button("Login Premium"):
@@ -154,10 +145,10 @@ if not st.session_state.logged_in:
                     st.error("Invalid Credentials")
 
         else:
-            name = st.text_input("Name")
-            company = st.text_input("Company")
-            email = st.text_input("Email")
-            place = st.text_input("Place")
+            name = st.text_input("Name", key="signup_name")
+            company = st.text_input("Company", key="signup_company")
+            email = st.text_input("Email", key="signup_email")
+            place = st.text_input("Place", key="signup_place")
             password = st.text_input("Password", type="password", key="signup_password")
             confirm = st.text_input("Confirm Password", type="password", key="signup_confirm_password")
 
@@ -176,7 +167,7 @@ if not st.session_state.logged_in:
     st.stop()
 
 # =============================
-# APP HEADER
+# HEADER
 # =============================
 
 colA, colB = st.columns([8, 1])
@@ -193,7 +184,7 @@ with colB:
 st.markdown("---")
 
 # =============================
-# LOAD DATA
+# DATA
 # =============================
 
 if st.session_state.user_type == "demo":
@@ -216,7 +207,7 @@ else:
         st.stop()
 
 # =============================
-# HEALTH LOGIC
+# HEALTH
 # =============================
 
 def health_calc(row):
@@ -240,84 +231,19 @@ df["risk_level"] = df["health_score"].apply(risk_flag)
 df["priority_score"] = (100 - df["health_score"]) + (df["plan_value"] / 100)
 
 # =============================
-# CUSTOMER & CSM SELECTION
+# OVERVIEW
 # =============================
 
 st.subheader("Customer Overview")
 
-col1, col2 = st.columns(2)
-
-with col1:
-    selected_customer = st.selectbox("Select Customer", df["customer_name"])
-
-with col2:
-    if "owner" in df.columns:
-        selected_csm = st.selectbox("Select CSM", df["owner"].unique())
-    else:
-        selected_csm = None
-
-if selected_csm:
-    df_filtered = df[df["owner"] == selected_csm]
-else:
-    df_filtered = df
-
-st.dataframe(df[["customer_name", "owner", "health_score", "risk_level", "priority_score"]])
-
-# =============================
-# HEALTH CHART
-# =============================
-
-st.subheader("Health Score Comparison")
-
-fig = px.bar(
-    df_filtered,
-    x="customer_name",
-    y="health_score",
-    color="risk_level",
-    color_discrete_map={
-        "High Risk": "#EF4444",
-        "Medium Risk": "#F59E0B",
-        "Low Risk": "#10B981"
-    }
+selected_customer = st.selectbox("Select Customer", df["customer_name"])
+st.dataframe(
+    df[["customer_name", "owner", "health_score", "risk_level", "priority_score"]],
+    use_container_width=True
 )
 
-fig.update_layout(plot_bgcolor="white", paper_bgcolor="white")
-st.plotly_chart(fig, use_container_width=True)
-
 # =============================
-# AI SUMMARY
-# =============================
-
-st.subheader("AI Executive Summary")
-
-row = df[df["customer_name"] == selected_customer].iloc[0]
-
-if st.session_state.user_type == "demo":
-    st.info("🔒 Upgrade to Premium to unlock AI Executive Summary.")
-else:
-    try:
-        prompt = f"""
-        Customer: {selected_customer}
-        Health Score: {row['health_score']}
-        Risk Level: {row['risk_level']}
-        Plan Value: {row['plan_value']}
-        Provide executive summary and recommended actions.
-        """
-
-        response = requests.post(
-            "http://localhost:11434/api/generate",
-            json={"model": "llama3.1", "prompt": prompt, "stream": False},
-            timeout=5
-        )
-
-        st.write(response.json()["response"])
-    except:
-        st.warning("⚠ AI only works locally with Ollama running.")
-
-st.markdown("---")
-
-# =============================
-# TASK TRACKER
+# TASK TRACKER (UNCHANGED)
 # =============================
 
 st.subheader("Task Tracker")
@@ -371,46 +297,3 @@ if tasks:
     st.dataframe(task_df, use_container_width=True)
 else:
     st.info("No tasks yet.")
-
-st.markdown("---")
-
-# =============================
-# CS INTELLIGENCE TOOLS
-# =============================
-
-st.header("Customer Success Intelligence Tools")
-
-tool_tab = st.selectbox("Select Tool",
-                        ["Renewal Forecast",
-                         "GRR Exposure",
-                         "Churn Impact Simulator",
-                         "CSM Workload"])
-
-if tool_tab == "Renewal Forecast":
-    renewal_rate = st.slider("Expected Renewal Rate (%)", 50, 100, 85)
-    total_revenue = df["plan_value"].sum()
-    projected_revenue = total_revenue * (renewal_rate / 100)
-    st.metric("Projected Renewal Revenue", f"${round(projected_revenue, 2)}")
-
-elif tool_tab == "GRR Exposure":
-    high_risk_revenue = df[df["risk_level"] == "High Risk"]["plan_value"].sum()
-    total_revenue = df["plan_value"].sum()
-    exposure = (high_risk_revenue / total_revenue) * 100 if total_revenue > 0 else 0
-    st.metric("Revenue at Risk %", f"{round(exposure,1)}%")
-
-elif tool_tab == "Churn Impact Simulator":
-    churn_pct = st.slider("If X% of High-Risk Customers Churn", 0, 100, 30)
-    high_risk_revenue = df[df["risk_level"] == "High Risk"]["plan_value"].sum()
-    potential_loss = high_risk_revenue * (churn_pct / 100)
-    st.metric("Potential Revenue Loss", f"${round(potential_loss,2)}")
-
-elif tool_tab == "CSM Workload":
-    if "owner" in df.columns:
-        workload = df.groupby("owner")["customer_name"].count().reset_index()
-        workload.columns = ["CSM", "Assigned Accounts"]
-
-        fig2 = px.bar(workload, x="CSM", y="Assigned Accounts", color="CSM")
-        fig2.update_layout(plot_bgcolor="white", paper_bgcolor="white")
-        st.plotly_chart(fig2, use_container_width=True)
-    else:
-        st.info("Upload dataset with owner column.")
