@@ -16,15 +16,13 @@ st.markdown("""
 <style>
 .stApp {
     background-color: #F4F6F9;
+    color: #111827;
 }
-h1, h2, h3 {
-    color: #1F2937;
+h1, h2, h3, h4 {
+    color: #111827;
 }
-div[data-testid="metric-container"] {
-    background-color: white;
-    border-radius: 10px;
-    padding: 15px;
-    box-shadow: 0px 2px 8px rgba(0,0,0,0.05);
+label {
+    color: #374151 !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -76,7 +74,7 @@ if not st.session_state.logged_in:
     with col1:
         st.subheader("🚀 Demo Access")
         demo_user = st.text_input("Username")
-        demo_pass = st.text_input("Password", type="password")
+        demo_pass = st.text_input("Password", type="password", key="demo_password")
 
         if st.button("Login Demo"):
             if demo_user.lower() == "freeuser" and demo_pass == "123456":
@@ -93,7 +91,7 @@ if not st.session_state.logged_in:
 
         if option == "Login":
             email = st.text_input("Email")
-            password = st.text_input("Password", type="password")
+            password = st.text_input("Password", type="password", key="premium_password")
 
             if st.button("Login Premium"):
                 c.execute("SELECT * FROM users WHERE email=? AND password=?", (email, password))
@@ -111,8 +109,8 @@ if not st.session_state.logged_in:
             company = st.text_input("Company")
             email = st.text_input("Email")
             place = st.text_input("Place")
-            password = st.text_input("Password", type="password")
-            confirm = st.text_input("Confirm Password", type="password")
+            password = st.text_input("Password", type="password", key="signup_password")
+            confirm = st.text_input("Confirm Password", type="password", key="signup_confirm_password")
 
             if st.button("Create Account"):
                 if password != confirm:
