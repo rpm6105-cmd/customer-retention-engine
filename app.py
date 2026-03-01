@@ -8,7 +8,7 @@ from datetime import datetime, date, timedelta
 st.set_page_config(page_title="Customer Retention & Growth Engine", layout="wide")
 
 # =============================
-# DATABASE INIT
+# DATABASE
 # =============================
 
 conn = sqlite3.connect("users.db", check_same_thread=False)
@@ -42,23 +42,27 @@ if "task_log" not in st.session_state:
     st.session_state.task_log = {}
 
 # =============================
-# LOGIN SECTION
+# LOGIN PAGE
 # =============================
 
 if not st.session_state.logged_in:
 
-    st.title("Customer Retention & Growth Engine")
+    st.markdown("""
+    <h1 style='text-align:center;'>Customer Retention & Growth Engine</h1>
+    <h4 style='text-align:center;color:gray;'>Revenue Risk Intelligence + Operational Execution</h4>
+    """, unsafe_allow_html=True)
 
     col1, col2 = st.columns(2)
 
     # DEMO LOGIN
     with col1:
-        st.subheader("Demo Login")
+        st.subheader("🚀 Demo Access")
+
         demo_user = st.text_input("Username", key="demo_user")
         demo_pass = st.text_input("Password", type="password", key="demo_pass")
 
         if st.button("Login Demo"):
-            if demo_user == "Freeuser" and demo_pass == "123456":
+            if demo_user.lower() == "freeuser" and demo_pass == "123456":
                 st.session_state.logged_in = True
                 st.session_state.user_type = "demo"
                 st.session_state.user_name = "Freeuser"
@@ -68,9 +72,9 @@ if not st.session_state.logged_in:
 
     # PREMIUM LOGIN
     with col2:
-        st.subheader("Use My CSV (Premium)")
+        st.subheader("📂 Use My CSV (Premium)")
 
-        option = st.radio("Choose Option", ["Login", "Sign Up"], key="premium_option")
+        option = st.radio("Select", ["Login", "Sign Up"], key="premium_option")
 
         if option == "Login":
             email = st.text_input("Email", key="login_email")
@@ -111,10 +115,11 @@ if not st.session_state.logged_in:
     st.stop()
 
 # =============================
-# HEADER AFTER LOGIN
+# APP HEADER
 # =============================
 
 colA, colB = st.columns([8, 1])
+
 with colA:
     st.title("Customer Retention & Growth Engine")
 
@@ -127,7 +132,7 @@ with colB:
 st.markdown("---")
 
 # =============================
-# DATA LOADING
+# LOAD DATA
 # =============================
 
 if st.session_state.user_type == "demo":
@@ -148,6 +153,7 @@ else:
         df["owner"] = "Assigned CSM"
         df["manager"] = "Manager"
     else:
+        st.info("Upload CSV to continue.")
         st.stop()
 
 # =============================
@@ -175,7 +181,7 @@ df["risk_level"] = df["health_score"].apply(risk_flag)
 df["priority_score"] = (100 - df["health_score"]) + (df["plan_value"] / 100)
 
 # =============================
-# CUSTOMER OVERVIEW + AI SIDE PANEL
+# MAIN DASHBOARD
 # =============================
 
 left, right = st.columns([2, 1])
@@ -201,20 +207,19 @@ with right:
             Health Score: {row['health_score']}
             Risk Level: {row['risk_level']}
             Plan Value: {row['plan_value']}
-
             Provide executive summary and recommended actions.
             """
 
             response = requests.post(
                 "http://localhost:11434/api/generate",
                 json={"model": "llama3.1", "prompt": prompt, "stream": False},
-                timeout=10
+                timeout=5
             )
 
             st.write(response.json()["response"])
 
         except:
-            st.warning("⚠ AI not available in cloud deployment. Run locally for AI.")
+            st.warning("⚠ AI only works locally with Ollama running.")
 
 st.markdown("---")
 
@@ -229,9 +234,9 @@ if selected not in st.session_state.task_log:
 
 with st.form("task_form", clear_on_submit=True):
     task_type = st.selectbox("Task Type",
-                             ["Recovery Plan", "Product Training", "Renewal Call",
-                              "Upsell Proposal", "Feature Enablement", "Other"])
-
+                             ["Recovery Plan", "Product Training",
+                              "Renewal Call", "Upsell Proposal",
+                              "Feature Enablement", "Other"])
     notes = st.text_input("Notes")
     due = st.date_input("Due Date")
 
@@ -252,8 +257,6 @@ with st.form("task_form", clear_on_submit=True):
         st.session_state.task_log[selected].append(task)
         st.success("Task Created")
 
-# Display Tasks
-
 tasks = st.session_state.task_log[selected]
 
 if tasks:
@@ -272,7 +275,6 @@ if tasks:
             return "On Track"
 
     task_df["SLA"] = task_df["Due Date"].apply(sla_status)
-
     st.dataframe(task_df, use_container_width=True)
 
 else:
