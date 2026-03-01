@@ -1,15 +1,14 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
 import sqlite3
-from datetime import datetime, date, timedelta
-import plotly.graph_objects as go
 import requests
+import uuid
+from datetime import datetime, date, timedelta
 
 st.set_page_config(page_title="Customer Retention & Growth Engine", layout="wide")
 
 # =============================
-# DATABASE (Premium Users)
+# DATABASE INIT
 # =============================
 
 conn = sqlite3.connect("users.db", check_same_thread=False)
@@ -19,8 +18,8 @@ c.execute("""
 CREATE TABLE IF NOT EXISTS users (
     name TEXT,
     company TEXT,
-    place TEXT,
     email TEXT PRIMARY KEY,
+    place TEXT,
     password TEXT
 )
 """)
@@ -30,271 +29,251 @@ conn.commit()
 # SESSION STATE
 # =============================
 
-defaults = {
-    "authenticated": False,
-    "user_type": None,
-    "username": None,
-    "task_log": {},
-    "health_history": {},
-    "task_counter": 1
-}
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
 
-for k, v in defaults.items():
-    if k not in st.session_state:
-        st.session_state[k] = v
+if "user_type" not in st.session_state:
+    st.session_state.user_type = None
+
+if "user_name" not in st.session_state:
+    st.session_state.user_name = None
+
+if "task_log" not in st.session_state:
+    st.session_state.task_log = {}
 
 # =============================
-# LOGIN SYSTEM
+# LOGIN SECTION
 # =============================
 
-if not st.session_state.authenticated:
+if not st.session_state.logged_in:
 
     st.title("Customer Retention & Growth Engine")
 
-    access = st.radio("Choose Access", ["Demo Login", "Use My CSV"])
+    col1, col2 = st.columns(2)
 
-    # -------- DEMO --------
-    if access == "Demo Login":
-        user = st.text_input("Username", key="demo_user")
-        pwd = st.text_input("Password", type="password", key="demo_pwd")
+    # DEMO LOGIN
+    with col1:
+        st.subheader("Demo Login")
+        demo_user = st.text_input("Username", key="demo_user")
+        demo_pass = st.text_input("Password", type="password", key="demo_pass")
 
         if st.button("Login Demo"):
-            if user == "freeuser" and pwd == "123456":
-                st.session_state.authenticated = True
+            if demo_user == "Freeuser" and demo_pass == "123456":
+                st.session_state.logged_in = True
                 st.session_state.user_type = "demo"
-                st.session_state.username = user
+                st.session_state.user_name = "Freeuser"
                 st.rerun()
             else:
-                st.error("Invalid credentials")
+                st.error("Invalid Demo Credentials")
 
-    # -------- PREMIUM --------
-    else:
-        mode = st.radio("Select Option", ["Login", "Signup"])
+    # PREMIUM LOGIN
+    with col2:
+        st.subheader("Use My CSV (Premium)")
 
-        if mode == "Signup":
-            name = st.text_input("Name", key="signup_name")
-            company = st.text_input("Company", key="signup_company")
-            place = st.text_input("Place", key="signup_place")
-            email = st.text_input("Email", key="signup_email")
-            password = st.text_input("Password", type="password", key="signup_pwd")
+        option = st.radio("Choose Option", ["Login", "Sign Up"], key="premium_option")
 
-            if st.button("Create Account"):
-                try:
-                    c.execute("INSERT INTO users VALUES (?, ?, ?, ?, ?)",
-                              (name, company, place, email, password))
-                    conn.commit()
-                    st.success("Account created. Please login.")
-                except:
-                    st.error("Email already exists.")
-
-        else:
+        if option == "Login":
             email = st.text_input("Email", key="login_email")
-            password = st.text_input("Password", type="password", key="login_pwd")
+            password = st.text_input("Password", type="password", key="login_password")
 
             if st.button("Login Premium"):
-                c.execute("SELECT * FROM users WHERE email=? AND password=?",
-                          (email, password))
-                result = c.fetchone()
-                if result:
-                    st.session_state.authenticated = True
+                c.execute("SELECT * FROM users WHERE email=? AND password=?", (email, password))
+                user = c.fetchone()
+
+                if user:
+                    st.session_state.logged_in = True
                     st.session_state.user_type = "premium"
-                    st.session_state.username = result[0]
+                    st.session_state.user_name = user[0]
                     st.rerun()
                 else:
-                    st.error("Invalid credentials")
+                    st.error("Invalid Credentials")
+
+        else:
+            name = st.text_input("Name", key="signup_name")
+            company = st.text_input("Company Name", key="signup_company")
+            email = st.text_input("Email", key="signup_email")
+            place = st.text_input("Place", key="signup_place")
+            password = st.text_input("Password", type="password", key="signup_pass")
+            confirm = st.text_input("Confirm Password", type="password", key="signup_confirm")
+
+            if st.button("Create Account"):
+                if password != confirm:
+                    st.error("Passwords do not match")
+                else:
+                    try:
+                        c.execute("INSERT INTO users VALUES (?,?,?,?,?)",
+                                  (name, company, email, place, password))
+                        conn.commit()
+                        st.success("Account created successfully. Please login.")
+                    except:
+                        st.error("Email already registered")
 
     st.stop()
 
 # =============================
-# HEADER
+# HEADER AFTER LOGIN
 # =============================
 
-col1, col2 = st.columns([6,2])
-with col1:
-    st.markdown("## Customer Retention & Growth Engine")
-with col2:
-    st.markdown(f"👤 **{st.session_state.username}**")
+colA, colB = st.columns([8, 1])
+with colA:
+    st.title("Customer Retention & Growth Engine")
+
+with colB:
+    st.write(f"👤 {st.session_state.user_name}")
     if st.button("Logout"):
-        st.session_state.authenticated = False
+        st.session_state.clear()
         st.rerun()
 
 st.markdown("---")
 
 # =============================
-# DATA SOURCE
+# DATA LOADING
 # =============================
 
 if st.session_state.user_type == "demo":
+
     df = pd.DataFrame({
         "customer_name": ["Alpha", "Beta", "Gamma", "Delta", "Omega"],
-        "logins_last_30_days": [25, 8, 18, 5, 30],
-        "support_tickets": [2, 6, 3, 7, 1],
-        "plan_value": [1500, 900, 2000, 800, 3000],
         "owner": ["Aisha", "Rahul", "Aisha", "David", "Rahul"],
-        "manager": ["Meera", "Meera", "Arjun", "Arjun", "Meera"]
+        "manager": ["Meera", "Meera", "Arjun", "Arjun", "Meera"],
+        "logins_last_30_days": [25, 5, 18, 3, 30],
+        "support_tickets": [2, 7, 3, 8, 1],
+        "plan_value": [1500, 900, 2000, 800, 3000]
     })
+
 else:
     uploaded = st.file_uploader("Upload Customer CSV", type=["csv"])
-    if uploaded is None:
+    if uploaded:
+        df = pd.read_csv(uploaded)
+        df["owner"] = "Assigned CSM"
+        df["manager"] = "Manager"
+    else:
         st.stop()
-    df = pd.read_csv(uploaded)
 
 # =============================
-# HEALTH ENGINE
+# HEALTH LOGIC
 # =============================
 
-def calc_health(r):
-    login = min(r["logins_last_30_days"] * 2, 40)
-    penalty = min(r["support_tickets"] * 4, 25)
-    revenue = min(r["plan_value"]/100, 35)
-    return max(min(login + revenue - penalty, 100),5)
+def health_calc(row):
+    login_score = min(row["logins_last_30_days"] * 2, 40)
+    ticket_penalty = min(row["support_tickets"] * 4, 25)
+    revenue_score = min(row["plan_value"] / 100, 35)
+    score = login_score + revenue_score - ticket_penalty
+    return max(min(score, 100), 5)
 
-df["health_score"] = df.apply(calc_health, axis=1)
+df["health_score"] = df.apply(health_calc, axis=1)
 
-def risk(s):
-    if s < 40: return "High Risk"
-    elif s < 70: return "Medium Risk"
-    return "Low Risk"
+def risk_flag(score):
+    if score < 40:
+        return "High Risk"
+    elif score < 70:
+        return "Medium Risk"
+    else:
+        return "Low Risk"
 
-df["risk_level"] = df["health_score"].apply(risk)
+df["risk_level"] = df["health_score"].apply(risk_flag)
+df["priority_score"] = (100 - df["health_score"]) + (df["plan_value"] / 100)
 
 # =============================
-# OVERVIEW + AI SIDE BY SIDE
+# CUSTOMER OVERVIEW + AI SIDE PANEL
 # =============================
 
-left, right = st.columns([3,3])
+left, right = st.columns([2, 1])
 
 with left:
     st.subheader("Customer Overview")
+    st.dataframe(df[["customer_name", "owner", "health_score", "risk_level", "priority_score"]])
 
-    if st.session_state.user_type == "demo":
+    selected = st.selectbox("Select Account", df["customer_name"])
+    row = df[df["customer_name"] == selected].iloc[0]
 
-        customer_to_owner = dict(zip(df["customer_name"], df["owner"]))
-        owner_to_customers = df.groupby("owner")["customer_name"].apply(list).to_dict()
-
-        owners = sorted(df["owner"].unique())
-        selected_owner = st.selectbox("Select CSM", owners)
-
-        customer_list = owner_to_customers[selected_owner]
-        selected = st.selectbox("Select Account", customer_list)
-
-        actual_owner = customer_to_owner[selected]
-        if selected_owner != actual_owner:
-            selected_owner = actual_owner
-
-        row = df[df["customer_name"] == selected].iloc[0]
-
-        st.markdown(f"### Owner: {row['owner']} | Manager: {row['manager']}")
-
-    else:
-        selected = st.selectbox("Select Account", df["customer_name"])
-        row = df[df["customer_name"] == selected].iloc[0]
-
-    st.dataframe(
-        df[["customer_name","health_score","risk_level"]],
-        use_container_width=True
-    )
+    st.write(f"Owner: {row['owner']} | Manager: {row['manager']}")
 
 with right:
     st.subheader("AI Executive Summary")
 
     if st.session_state.user_type == "demo":
-        st.info("🔒 Upgrade to Premium to unlock AI Executive Summary and Recommended Actions.")
+        st.info("🔒 Upgrade to Premium to unlock AI Executive Summary.")
     else:
-        prompt = f"""
-        Customer: {selected}
-        Health Score: {row['health_score']}
-        Risk Level: {row['risk_level']}
-        Plan Value: {row['plan_value']}
+        try:
+            prompt = f"""
+            Customer: {selected}
+            Health Score: {row['health_score']}
+            Risk Level: {row['risk_level']}
+            Plan Value: {row['plan_value']}
 
-        Provide executive summary and recommended actions.
-        """
+            Provide executive summary and recommended actions.
+            """
 
-        response = requests.post(
-            "http://localhost:11434/api/generate",
-            json={
-                "model": "llama3.1",
-                "prompt": prompt,
-                "stream": False
-            }
-        )
+            response = requests.post(
+                "http://localhost:11434/api/generate",
+                json={"model": "llama3.1", "prompt": prompt, "stream": False},
+                timeout=10
+            )
 
-        st.write(response.json()["response"])
+            st.write(response.json()["response"])
 
-# =============================
-# WEEK VIEW
-# =============================
+        except:
+            st.warning("⚠ AI not available in cloud deployment. Run locally for AI.")
 
 st.markdown("---")
-
-if selected not in st.session_state.health_history:
-    base = row["health_score"]
-    st.session_state.health_history[selected] = [
-        max(min(base + np.random.randint(-8,8),100),5) for _ in range(6)
-    ]
-
-week = st.selectbox("Select Week", [f"Week {i}" for i in range(1,7)])
-idx = int(week.split()[1]) - 1
-st.metric("Health Score", st.session_state.health_history[selected][idx])
 
 # =============================
 # TASK TRACKER
 # =============================
 
-st.markdown("---")
 st.subheader("Task Tracker")
+
+if selected not in st.session_state.task_log:
+    st.session_state.task_log[selected] = []
 
 with st.form("task_form", clear_on_submit=True):
     task_type = st.selectbox("Task Type",
-        ["Recovery Plan","Training","Escalation","Renewal","Upsell","Enablement","Other"]
-    )
+                             ["Recovery Plan", "Product Training", "Renewal Call",
+                              "Upsell Proposal", "Feature Enablement", "Other"])
+
     notes = st.text_input("Notes")
-    due = st.date_input("Due Date", value=date.today())
-    submit = st.form_submit_button("Create Task")
+    due = st.date_input("Due Date")
 
-    if submit:
-        task_id = f"TASK-{st.session_state.task_counter:04d}"
-        st.session_state.task_counter += 1
+    submitted = st.form_submit_button("Create Task")
 
-        entry = {
+    if submitted:
+        task_id = str(uuid.uuid4())[:8]
+        created_time = datetime.now().strftime("%Y-%m-%d %H:%M")
+
+        task = {
             "Task ID": task_id,
             "Task Type": task_type,
             "Notes": notes,
-            "Created": datetime.now().strftime("%Y-%m-%d %H:%M"),
+            "Created": created_time,
             "Due Date": due.strftime("%Y-%m-%d")
         }
 
-        st.session_state.task_log.setdefault(selected, []).append(entry)
-        st.success(f"{task_id} created.")
+        st.session_state.task_log[selected].append(task)
+        st.success("Task Created")
 
-if selected in st.session_state.task_log:
+# Display Tasks
 
-    header = st.columns([1.5,2,3,2,2,2])
-    header[0].markdown("**Task ID**")
-    header[1].markdown("**Task Type**")
-    header[2].markdown("**Notes**")
-    header[3].markdown("**Created**")
-    header[4].markdown("**Due Date**")
-    header[5].markdown("**SLA**")
+tasks = st.session_state.task_log[selected]
 
-    for t in st.session_state.task_log[selected]:
+if tasks:
+    task_df = pd.DataFrame(tasks)
 
-        cols = st.columns([1.5,2,3,2,2,2])
-        cols[0].write(t["Task ID"])
-        cols[1].write(t["Task Type"])
-        cols[2].write(t["Notes"])
-        cols[3].write(t["Created"])
-        cols[4].write(t["Due Date"])
-
-        due_date = datetime.strptime(t["Due Date"], "%Y-%m-%d").date()
+    def sla_status(due):
         today = date.today()
-
+        due_date = datetime.strptime(due, "%Y-%m-%d").date()
         if due_date < today:
-            cols[5].write("🔴 Overdue")
+            return "Overdue"
+        elif due_date == today:
+            return "Due Today"
         elif due_date <= today + timedelta(days=2):
-            cols[5].write("🟡 Reminder")
+            return "Reminder Soon"
         else:
-            cols[5].write("🔵 On Track")
+            return "On Track"
+
+    task_df["SLA"] = task_df["Due Date"].apply(sla_status)
+
+    st.dataframe(task_df, use_container_width=True)
 
 else:
-    st.info("No tasks created yet.")
+    st.info("No tasks yet.")
