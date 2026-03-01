@@ -1,0 +1,6 @@
+customer_name,logins_last_30_days,support_tickets,plan_value,health_score,risk_level,expansion_opportunity
+Alpha Inc,25,1,1000,55.0,Medium Risk,None
+Beta Ltd,5,6,500,0.0,High Risk,None
+Gamma Co,12,2,750,29.0,High Risk,None
+Delta Corp,3,8,300,0.0,High Risk,None
+Omega LLC,30,0,2000,70.0,Low Risk,Expansion Candidate
