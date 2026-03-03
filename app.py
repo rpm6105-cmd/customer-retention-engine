@@ -959,6 +959,9 @@ if "user_email" not in st.session_state:
 if "signup_success" not in st.session_state:
     st.session_state.signup_success = None
 
+if "force_login_view" not in st.session_state:
+    st.session_state.force_login_view = False
+
 if "current_snapshot_fp" not in st.session_state:
     st.session_state.current_snapshot_fp = None
 
@@ -978,6 +981,9 @@ if "ai_summary_for_customer" not in st.session_state:
 if not st.session_state.logged_in:
 
     st.markdown("<h1 style='text-align:center;'>Customer Retention & Growth Engine</h1>", unsafe_allow_html=True)
+    if st.session_state.force_login_view:
+        st.session_state["premium_option"] = "Login"
+        st.session_state.force_login_view = False
     option = st.radio("Premium Access", ["Login", "Sign Up"], key="premium_option", horizontal=True)
 
     if st.session_state.signup_success:
@@ -1048,7 +1054,7 @@ if not st.session_state.logged_in:
                         c.execute("INSERT INTO users VALUES (?,?,?,?,?)",
                                   (signup_name, signup_company, signup_email, signup_place, signup_password))
                         conn.commit()
-                        st.session_state["premium_option"] = "Login"
+                        st.session_state.force_login_view = True
                         st.session_state.signup_success = "Account created successfully. Please login with Premium."
                         st.rerun()
                     except sqlite3.IntegrityError:
