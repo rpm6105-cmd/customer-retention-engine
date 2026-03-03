@@ -1,7 +1,10 @@
 import streamlit as st
 import pandas as pd
 import sqlite3
+import requests
 import uuid
+import hashlib
+import plotly.express as px
 from html import escape
 from datetime import datetime, date, timedelta
 
@@ -116,6 +119,120 @@ button[kind="secondary"] * {
     background: #fef2f2;
     color: #7f1d1d;
     font-weight: 600;
+}
+
+.ai-summary-card {
+    margin-top: 10px;
+    padding: 14px 16px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: #ffffff;
+    color: #1f2937;
+    line-height: 1.5;
+}
+
+.ai-blur {
+    filter: blur(5px);
+    user-select: none;
+}
+
+.upgrade-note {
+    margin-top: 8px;
+    font-weight: 700;
+    color: #9a3412;
+}
+
+.premium-hero {
+    margin-top: 10px;
+    margin-bottom: 12px;
+    padding: 16px 18px;
+    border-radius: 14px;
+    border: 1px solid #bfd8f3;
+    background: linear-gradient(130deg, #0f2a43 0%, #0f766e 45%, #1d4ed8 100%);
+    color: #f8fbff;
+}
+
+.premium-hero-title {
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: 0.2px;
+}
+
+.premium-hero-sub {
+    margin-top: 6px;
+    opacity: 0.92;
+}
+
+.premium-chip-row {
+    margin-top: 10px;
+}
+
+.premium-chip {
+    display: inline-block;
+    margin-right: 8px;
+    margin-bottom: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    background: rgba(255, 255, 255, 0.18);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+/* Remove Streamlit top black header area */
+header[data-testid="stHeader"] {
+    background: transparent !important;
+}
+
+div[data-testid="stToolbar"] {
+    visibility: hidden !important;
+    height: 0 !important;
+}
+
+/* Uploader text/readability */
+section[data-testid="stFileUploader"] small,
+section[data-testid="stFileUploader"] span,
+section[data-testid="stFileUploader"] p,
+div[data-testid="stFileUploaderFileName"] {
+    color: #0f172a !important;
+    opacity: 1 !important;
+    font-weight: 700 !important;
+}
+
+.premium-kpi {
+    border: 1px solid #d8e8fb;
+    border-radius: 12px;
+    background: linear-gradient(180deg, #ffffff 0%, #f3f9ff 100%);
+    padding: 12px 14px;
+    margin-bottom: 8px;
+}
+
+.premium-kpi-label {
+    color: #35506b;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.premium-kpi-value {
+    color: #0f172a;
+    font-size: 28px;
+    font-weight: 800;
+    margin-top: 2px;
+}
+
+.suggestion-card {
+    margin-top: 10px;
+    padding: 14px 16px;
+    border-radius: 12px;
+    border: 1px solid #c9ddf5;
+    background: #f8fbff;
+}
+
+.suggestion-title {
+    font-weight: 800;
+    color: #0f4c5c;
+    margin-bottom: 6px;
 }
 
 /* Keep disabled buttons readable */
@@ -325,9 +442,105 @@ def validate_and_prepare_customer_df(raw_df: pd.DataFrame):
     if len(df_clean) == 0:
         return None, "CSV has no valid customer rows after cleaning."
 
-    df_clean["owner"] = "Assigned CSM"
-    df_clean["manager"] = "Manager"
+    df_clean = assign_csm_fields(df_clean)
     return df_clean, None
+
+
+def enrich_contract_fields(df_input: pd.DataFrame) -> pd.DataFrame:
+    df_enriched = df_input.copy()
+    hashes = df_enriched["customer_name"].astype(str).apply(lambda x: int(hashlib.sha256(x.encode("utf-8")).hexdigest(), 16))
+
+    purchase_offsets = hashes % 720
+    term_days = (hashes // 7 % 365) + 180
+
+    purchase_dates = [date.today() - timedelta(days=int(v)) for v in purchase_offsets]
+    renewal_dates = [purchase_dates[i] + timedelta(days=int(term_days.iloc[i])) for i in range(len(df_enriched))]
+    auto_renew_opt_out = [bool((h // 11) % 2) for h in hashes]
+
+    df_enriched["purchase_date"] = [d.strftime("%Y-%m-%d") for d in purchase_dates]
+    df_enriched["renewal_date"] = [d.strftime("%Y-%m-%d") for d in renewal_dates]
+    df_enriched["auto_renew_opt_out"] = auto_renew_opt_out
+    return df_enriched
+
+
+def assign_csm_fields(df_input: pd.DataFrame) -> pd.DataFrame:
+    owners = ["Aisha", "Rahul", "David", "Nina", "Karthik", "Meera"]
+    managers = ["Arjun", "Meera", "Sonia"]
+    hashes = df_input["customer_name"].astype(str).apply(lambda x: int(hashlib.sha256(x.encode("utf-8")).hexdigest(), 16))
+
+    df_assigned = df_input.copy()
+    df_assigned["owner"] = [owners[h % len(owners)] for h in hashes]
+    df_assigned["manager"] = [managers[(h // 5) % len(managers)] for h in hashes]
+    return df_assigned
+
+
+def recommend_options_for_row(row: pd.Series):
+    risk = row.get("risk_level", "")
+    health = float(row.get("health_score", 0))
+    tickets = float(row.get("support_tickets", 0))
+    plan = float(row.get("plan_value", 0))
+    auto_opt_out = bool(row.get("auto_renew_opt_out", False))
+
+    discount_score = 25
+    upsell_score = 20
+    enablement_score = 25
+
+    if risk == "High Risk":
+        discount_score += 40
+        enablement_score += 25
+        upsell_score -= 10
+    elif risk == "Medium Risk":
+        discount_score += 12
+        enablement_score += 30
+        upsell_score += 5
+    else:
+        upsell_score += 35
+        enablement_score += 10
+
+    if auto_opt_out:
+        discount_score += 12
+        enablement_score += 5
+
+    if tickets >= 6:
+        enablement_score += 20
+        discount_score += 8
+    elif tickets <= 2:
+        upsell_score += 14
+
+    if health >= 75:
+        upsell_score += 18
+    elif health <= 45:
+        discount_score += 12
+        enablement_score += 10
+
+    if plan >= 1800:
+        discount_score += 8
+        upsell_score += 10
+
+    options = [
+        {
+            "strategy": "Upsell",
+            "impact_score": int(max(0, min(100, upsell_score))),
+            "play": "Propose premium tier + add-on bundle aligned to current usage depth.",
+        },
+        {
+            "strategy": "Discount Save",
+            "impact_score": int(max(0, min(100, discount_score))),
+            "play": "Offer targeted renewal discount tied to adoption milestones and auto-renew recovery.",
+        },
+        {
+            "strategy": "Enablement Plan",
+            "impact_score": int(max(0, min(100, enablement_score))),
+            "play": "Run 30-day success plan with weekly training and executive check-ins.",
+        },
+    ]
+    return sorted(options, key=lambda x: x["impact_score"], reverse=True)
+
+
+def recommend_action_for_row(row: pd.Series) -> str:
+    options = recommend_options_for_row(row)
+    top = options[0]
+    return f"{top['strategy']}: {top['play']}"
 
 
 def get_user_key() -> str:
@@ -467,6 +680,266 @@ def render_task_table(df_input: pd.DataFrame):
     )
 
 
+def build_ai_summary(df_input: pd.DataFrame, selected_row: pd.Series | None = None) -> str:
+    if selected_row is None:
+        selected_row = df_input.sort_values("priority_score", ascending=False).iloc[0]
+
+    prompt = f"""
+Act as a VP of Customer Success.
+Write a concise 6-8 sentence account strategy summary.
+
+Selected Account: {selected_row['customer_name']}
+Health Score: {float(selected_row['health_score']):.1f}
+Risk Level: {selected_row['risk_level']}
+Support Tickets (30d): {int(selected_row['support_tickets'])}
+Plan Value: {float(selected_row['plan_value']):.0f}
+Auto Renew Opt-Out: {bool(selected_row['auto_renew_opt_out'])}
+Renewal Date: {selected_row['renewal_date']}
+
+Give: (1) top risk, (2) top opportunity, (3) immediate 30-day action plan.
+Do not ask questions.
+"""
+    try:
+        response = requests.post(
+            "http://localhost:11434/api/generate",
+            json={
+                "model": "llama3.1",
+                "prompt": prompt,
+                "stream": False
+            },
+            timeout=20,
+        )
+        response.raise_for_status()
+        payload = response.json()
+        text = (payload.get("response") or "").strip()
+        if text:
+            return text
+    except Exception:
+        pass
+
+    options = recommend_options_for_row(selected_row)
+    return (
+        f"{selected_row['customer_name']} is currently tagged as {selected_row['risk_level']} with "
+        f"a health score of {float(selected_row['health_score']):.1f}. The primary risk is renewal volatility "
+        f"driven by support pressure and adoption depth. The best immediate strategy is {options[0]['strategy']}: "
+        f"{options[0]['play']} Secondary option: {options[1]['strategy']} ({options[1]['impact_score']}/100 impact). "
+        f"Third option: {options[2]['strategy']} ({options[2]['impact_score']}/100 impact). "
+        "Execute weekly checkpoints for 30 days and track risk movement before renewal."
+    )
+
+
+def render_premium_command_center(df_input: pd.DataFrame, selected_row: pd.Series):
+    total = len(df_input)
+    high = int((df_input["risk_level"] == "High Risk").sum())
+    medium = int((df_input["risk_level"] == "Medium Risk").sum())
+    low = int((df_input["risk_level"] == "Low Risk").sum())
+    avg_health = float(df_input["health_score"].mean()) if total else 0.0
+    revenue_total = float(df_input["plan_value"].sum()) if total else 0.0
+    revenue_risk = float(df_input[df_input["risk_level"] == "High Risk"]["plan_value"].sum()) if total else 0.0
+    expansion_pool = float(
+        df_input[(df_input["health_score"] >= 65) & (df_input["support_tickets"] <= 2)]["plan_value"].sum()
+    ) if total else 0.0
+
+    st.markdown(
+        """
+        <div class="premium-hero">
+            <div class="premium-hero-title">Premium CX Intelligence Command Center</div>
+            <div class="premium-hero-sub">Advanced retention and growth lens for leadership-level decisions.</div>
+            <div class="premium-chip-row">
+                <span class="premium-chip">Risk Forecasting</span>
+                <span class="premium-chip">Revenue-at-Risk Lens</span>
+                <span class="premium-chip">Prioritized Action Queue</span>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    c1, c2, c3, c4 = st.columns(4)
+    c1.markdown(
+        f"<div class='premium-kpi'><div class='premium-kpi-label'>Portfolio Health</div><div class='premium-kpi-value'>{avg_health:.1f}</div></div>",
+        unsafe_allow_html=True,
+    )
+    c2.markdown(
+        f"<div class='premium-kpi'><div class='premium-kpi-label'>High Risk Accounts</div><div class='premium-kpi-value'>{high}</div></div>",
+        unsafe_allow_html=True,
+    )
+    c3.markdown(
+        f"<div class='premium-kpi'><div class='premium-kpi-label'>Revenue At Risk</div><div class='premium-kpi-value'>{revenue_risk:,.0f}</div></div>",
+        unsafe_allow_html=True,
+    )
+    c4.markdown(
+        f"<div class='premium-kpi'><div class='premium-kpi-label'>Expansion Pool</div><div class='premium-kpi-value'>{expansion_pool:,.0f}</div></div>",
+        unsafe_allow_html=True,
+    )
+
+    options = recommend_options_for_row(selected_row)
+    suggestion = recommend_action_for_row(selected_row)
+    st.markdown(
+        f"""
+        <div class="suggestion-card">
+            <div class="suggestion-title">Suggested Play For {escape(str(selected_row['customer_name']))}</div>
+            <div>{escape(suggestion)}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    options_df = pd.DataFrame(options)
+    options_df = options_df.rename(
+        columns={
+            "strategy": "Strategy",
+            "impact_score": "Impact Score",
+            "play": "Recommended Play",
+        }
+    )
+    st.dataframe(options_df, use_container_width=True)
+
+    tab1, tab2, tab3, tab4 = st.tabs(["Risk Insights", "Revenue Lens", "Action Queue", "Delta Insights"])
+
+    with tab1:
+        st.write(
+            f"Risk mix across {total} accounts: High `{high}`, Medium `{medium}`, Low `{low}`. "
+            "Use this to calibrate team capacity for save motions."
+        )
+        risk_df = pd.DataFrame(
+            {
+                "risk_level": ["High Risk", "Medium Risk", "Low Risk"],
+                "count": [high, medium, low],
+            }
+        )
+        fig = px.bar(
+            risk_df,
+            x="risk_level",
+            y="count",
+            color="risk_level",
+            color_discrete_map={
+                "High Risk": "#dc2626",
+                "Medium Risk": "#d97706",
+                "Low Risk": "#16a34a",
+            },
+            title="Risk Distribution",
+        )
+        fig.update_layout(
+            plot_bgcolor="rgba(0,0,0,0)",
+            paper_bgcolor="rgba(0,0,0,0)",
+            font=dict(color="#1f2937"),
+            showlegend=False,
+            margin=dict(l=20, r=20, t=50, b=20),
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
+    with tab2:
+        c5, c6 = st.columns(2)
+        with c5:
+            st.metric("Total Managed Revenue", f"{revenue_total:,.0f}")
+        with c6:
+            risk_pct = (revenue_risk / revenue_total * 100) if revenue_total else 0
+            st.metric("Revenue Risk %", f"{risk_pct:.1f}%")
+        st.caption("Track this weekly to evaluate retention motion impact.")
+
+    with tab3:
+        action_df = (
+            df_input.sort_values("priority_score", ascending=False)
+            .head(5)[["customer_name", "owner", "risk_level", "priority_score"]]
+            .rename(columns={"customer_name": "Account", "owner": "Owner", "risk_level": "Risk", "priority_score": "Priority"})
+        )
+        st.dataframe(action_df, use_container_width=True)
+
+    with tab4:
+        previous_df = get_previous_snapshot_df()
+        if previous_df is None or previous_df.empty:
+            st.info("Upload a newer CSV later to unlock change tracking vs previous upload.")
+        else:
+            current_avg_health = float(df_input["health_score"].mean()) if len(df_input) else 0.0
+            previous_avg_health = float(previous_df["health_score"].mean()) if len(previous_df) else 0.0
+            health_delta = current_avg_health - previous_avg_health
+
+            current_high = int((df_input["risk_level"] == "High Risk").sum())
+            previous_high = int((previous_df["risk_level"] == "High Risk").sum())
+            high_delta = current_high - previous_high
+
+            current_risk_revenue = float(df_input[df_input["risk_level"] == "High Risk"]["plan_value"].sum())
+            previous_risk_revenue = float(previous_df[previous_df["risk_level"] == "High Risk"]["plan_value"].sum())
+            risk_rev_delta = current_risk_revenue - previous_risk_revenue
+
+            d1, d2, d3 = st.columns(3)
+            d1.metric("Avg Health Delta", f"{health_delta:+.1f}")
+            d2.metric("High Risk Delta", f"{high_delta:+d}")
+            d3.metric("Revenue-at-Risk Delta", f"{risk_rev_delta:+,.0f}")
+
+            current_key = df_input[["customer_name", "priority_score", "risk_level"]].copy()
+            previous_key = previous_df[["customer_name", "priority_score", "risk_level"]].copy()
+            merged = current_key.merge(previous_key, on="customer_name", how="inner", suffixes=("_current", "_prev"))
+            if len(merged) > 0:
+                merged["priority_delta"] = merged["priority_score_current"] - merged["priority_score_prev"]
+                merged["risk_changed"] = merged["risk_level_current"] != merged["risk_level_prev"]
+                movers = merged.reindex(merged["priority_delta"].abs().sort_values(ascending=False).index).head(5)
+                movers = movers.rename(
+                    columns={
+                        "customer_name": "Account",
+                        "priority_score_prev": "Prev Priority",
+                        "priority_score_current": "Current Priority",
+                        "priority_delta": "Priority Delta",
+                        "risk_level_prev": "Prev Risk",
+                        "risk_level_current": "Current Risk",
+                        "risk_changed": "Risk Changed",
+                    }
+                )
+                st.caption("Top account-level movements (current upload vs previous upload)")
+                st.dataframe(
+                    movers[
+                        [
+                            "Account",
+                            "Prev Priority",
+                            "Current Priority",
+                            "Priority Delta",
+                            "Prev Risk",
+                            "Current Risk",
+                            "Risk Changed",
+                        ]
+                    ],
+                    use_container_width=True,
+                )
+            else:
+                st.info("No overlapping account names found between current and previous uploads.")
+
+
+def snapshot_fingerprint(df_input: pd.DataFrame) -> str:
+    cols = ["customer_name", "logins_last_30_days", "support_tickets", "plan_value"]
+    available_cols = [c for c in cols if c in df_input.columns]
+    normalized = (
+        df_input[available_cols]
+        .copy()
+        .sort_values(by="customer_name")
+        .reset_index(drop=True)
+        .to_csv(index=False)
+    )
+    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+
+
+def get_previous_snapshot_df():
+    previous_json = st.session_state.get("previous_snapshot_json")
+    if not previous_json:
+        return None
+    try:
+        return pd.read_json(previous_json)
+    except Exception:
+        return None
+
+
+def update_snapshot_state(df_input: pd.DataFrame):
+    required_cols = ["customer_name", "health_score", "risk_level", "priority_score", "plan_value"]
+    snapshot_df = df_input[required_cols].copy()
+    current_fp = snapshot_fingerprint(df_input)
+    last_fp = st.session_state.get("current_snapshot_fp")
+
+    if last_fp and current_fp != last_fp and st.session_state.get("current_snapshot_json"):
+        st.session_state.previous_snapshot_json = st.session_state.current_snapshot_json
+
+    st.session_state.current_snapshot_fp = current_fp
+    st.session_state.current_snapshot_json = snapshot_df.to_json()
+
+
 # =============================
 # SESSION STATE
 # =============================
@@ -483,6 +956,21 @@ if "user_name" not in st.session_state:
 if "user_email" not in st.session_state:
     st.session_state.user_email = None
 
+if "signup_success" not in st.session_state:
+    st.session_state.signup_success = None
+
+if "current_snapshot_fp" not in st.session_state:
+    st.session_state.current_snapshot_fp = None
+
+if "current_snapshot_json" not in st.session_state:
+    st.session_state.current_snapshot_json = None
+
+if "previous_snapshot_json" not in st.session_state:
+    st.session_state.previous_snapshot_json = None
+
+if "ai_summary_for_customer" not in st.session_state:
+    st.session_state.ai_summary_for_customer = None
+
 # =============================
 # LOGIN PAGE
 # =============================
@@ -490,34 +978,39 @@ if "user_email" not in st.session_state:
 if not st.session_state.logged_in:
 
     st.markdown("<h1 style='text-align:center;'>Customer Retention & Growth Engine</h1>", unsafe_allow_html=True)
+    option = st.radio("Premium Access", ["Login", "Sign Up"], key="premium_option", horizontal=True)
 
-    col1, col2 = st.columns(2)
+    if st.session_state.signup_success:
+        st.success(st.session_state.signup_success)
+        st.session_state.signup_success = None
 
-    with col1:
-        st.subheader("🚀 Demo Access")
-        demo_user = st.text_input("Username", key="demo_user")
-        demo_pass = st.text_input("Password", type="password", key="demo_password")
+    if option == "Login":
+        col1, col2 = st.columns(2)
 
-        if st.button("Login Demo"):
-            if demo_user.lower() == "freeuser" and demo_pass == "123456":
-                st.session_state.logged_in = True
-                st.session_state.user_type = "demo"
-                st.session_state.user_name = "Freeuser"
-                st.session_state.user_email = "demo@local"
-                st.rerun()
-            else:
-                st.error("Invalid Demo Credentials")
+        with col1:
+            st.subheader("🚀 Try Demo")
+            demo_user = st.text_input("Username", key="demo_user")
+            demo_pass = st.text_input("Password", type="password", key="demo_password")
 
-    with col2:
-        st.subheader("📂 Use My CSV (Premium)")
-        option = st.radio("Select", ["Login", "Sign Up"], key="premium_option")
+            if st.button("Login Demo"):
+                if demo_user.lower() == "freeuser" and demo_pass == "123456":
+                    st.session_state.logged_in = True
+                    st.session_state.user_type = "demo"
+                    st.session_state.user_name = "Freeuser"
+                    st.session_state.user_email = "demo@local"
+                    st.rerun()
+                else:
+                    st.error("Invalid Demo Credentials")
 
-        if option == "Login":
+        with col2:
+            st.subheader("📂 Use My CSV (Premium)")
             email = st.text_input("Email", key="login_email")
             password = st.text_input("Password", type="password", key="premium_password")
 
             if st.button("Login Premium"):
-                c.execute("SELECT * FROM users WHERE email=? AND password=?", (email, password))
+                login_email = email.strip().lower()
+                login_password = password.strip()
+                c.execute("SELECT * FROM users WHERE email=? AND password=?", (login_email, login_password))
                 user = c.fetchone()
                 if user:
                     st.session_state.logged_in = True
@@ -527,8 +1020,10 @@ if not st.session_state.logged_in:
                     st.rerun()
                 else:
                     st.error("Invalid Credentials")
-
-        else:
+    else:
+        _, col_mid, _ = st.columns([1, 1.2, 1])
+        with col_mid:
+            st.subheader("📂 Use My CSV (Premium)")
             name = st.text_input("Name", key="signup_name")
             company = st.text_input("Company", key="signup_company")
             email = st.text_input("Email", key="signup_email")
@@ -537,16 +1032,29 @@ if not st.session_state.logged_in:
             confirm = st.text_input("Confirm Password", type="password", key="signup_confirm_password")
 
             if st.button("Create Account"):
-                if password != confirm:
+                signup_name = name.strip()
+                signup_company = company.strip()
+                signup_email = email.strip().lower()
+                signup_place = place.strip()
+                signup_password = password.strip()
+                signup_confirm = confirm.strip()
+
+                if not signup_name or not signup_email or not signup_password:
+                    st.error("Name, Email, and Password are required")
+                elif signup_password != signup_confirm:
                     st.error("Passwords do not match")
                 else:
                     try:
                         c.execute("INSERT INTO users VALUES (?,?,?,?,?)",
-                                  (name, company, email, place, password))
+                                  (signup_name, signup_company, signup_email, signup_place, signup_password))
                         conn.commit()
-                        st.success("Account created successfully. Please login.")
-                    except:
+                        st.session_state["premium_option"] = "Login"
+                        st.session_state.signup_success = "Account created successfully. Please login with Premium."
+                        st.rerun()
+                    except sqlite3.IntegrityError:
                         st.error("Email already registered")
+                    except Exception as err:
+                        st.error(f"Account creation failed: {err}")
 
     st.stop()
 
@@ -592,6 +1100,8 @@ else:
         st.info("Upload CSV to continue.")
         st.stop()
 
+df = enrich_contract_fields(df)
+
 # =============================
 # HEALTH
 # =============================
@@ -616,6 +1126,9 @@ def risk_flag(score):
 df["risk_level"] = df["health_score"].apply(risk_flag)
 df["priority_score"] = (100 - df["health_score"]) + (df["plan_value"] / 100)
 
+if st.session_state.user_type == "premium":
+    update_snapshot_state(df)
+
 # =============================
 # OVERVIEW
 # =============================
@@ -623,9 +1136,60 @@ df["priority_score"] = (100 - df["health_score"]) + (df["plan_value"] / 100)
 st.subheader("Customer Overview")
 
 selected_customer = st.selectbox("Select Customer", df["customer_name"])
+selected_row = df[df["customer_name"] == selected_customer].iloc[0]
+if st.session_state.get("ai_summary_for_customer") != selected_customer:
+    st.session_state["ai_summary_text"] = None
+    st.session_state["ai_summary_for_customer"] = selected_customer
 render_customer_overview_table(
     df[["customer_name", "owner", "health_score", "risk_level", "priority_score"]]
 )
+
+st.markdown(
+    f"""
+    <div class='suggestion-card'>
+        <div class='suggestion-title'>Contract Snapshot: {escape(str(selected_customer))}</div>
+        <div>Purchase Date: <b>{escape(str(selected_row['purchase_date']))}</b></div>
+        <div>Renewal Date: <b>{escape(str(selected_row['renewal_date']))}</b></div>
+        <div>Auto Renew Opt-Out: <b>{'Yes' if bool(selected_row['auto_renew_opt_out']) else 'No'}</b></div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+
+# Premium-only advanced section
+if st.session_state.user_type == "premium":
+    render_premium_command_center(df, selected_row)
+
+# =============================
+# AI EXECUTIVE SUMMARY
+# =============================
+
+st.subheader("AI Executive Summary")
+
+if st.session_state.user_type == "demo":
+    st.markdown(
+        """
+        <div class="ai-summary-card">
+            <div class="ai-blur">
+                Churn risk is concentrated in low-engagement accounts with recurring support friction.
+                Revenue at risk requires structured owner-led intervention, while healthy accounts show
+                clear expansion potential. Priority focus should balance churn prevention and guided growth
+                to stabilize renewals and improve net retention over the next cycle.
+            </div>
+            <div class="upgrade-note">Upgrade to Premium to unlock the full details.</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+else:
+    if st.button("Generate AI Executive Summary", type="secondary"):
+        st.session_state["ai_summary_text"] = build_ai_summary(df, selected_row)
+        st.session_state["ai_summary_for_customer"] = selected_customer
+    ai_summary_text = st.session_state.get("ai_summary_text")
+    if ai_summary_text:
+        st.markdown(f"<div class='ai-summary-card'>{escape(ai_summary_text)}</div>", unsafe_allow_html=True)
+    else:
+        st.info("Click 'Generate AI Executive Summary' to view insights.")
 
 # =============================
 # TASK TRACKER (UNCHANGED)
