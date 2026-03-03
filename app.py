@@ -6,6 +6,7 @@ import uuid
 import hashlib
 from html import escape
 from datetime import datetime, date, timedelta
+from io import StringIO
 
 st.set_page_config(page_title="Customer Retention & Growth Engine", layout="wide")
 
@@ -198,6 +199,38 @@ div[data-testid="stFileUploaderFileName"] {
     font-weight: 700 !important;
 }
 
+section[data-testid="stFileUploader"] {
+    border: 1.5px dashed #6aa9e9 !important;
+    border-radius: 14px !important;
+    background: linear-gradient(180deg, #ffffff 0%, #eef6ff 100%) !important;
+    padding: 10px !important;
+}
+
+.help-widget {
+    position: fixed;
+    left: 16px;
+    bottom: 16px;
+    width: 320px;
+    z-index: 99999;
+    border: 1px solid #bfd8f3;
+    border-radius: 12px;
+    background: #ffffff;
+    box-shadow: 0 10px 24px rgba(20, 35, 58, 0.18);
+    font-size: 13px;
+}
+
+.help-head {
+    padding: 10px 12px;
+    background: #e8f2ff;
+    border-bottom: 1px solid #cfe0f5;
+    font-weight: 800;
+    color: #0f4c5c;
+}
+
+.help-body {
+    padding: 10px 12px;
+}
+
 .premium-kpi {
     border: 1px solid #d8e8fb;
     border-radius: 12px;
@@ -232,6 +265,37 @@ div[data-testid="stFileUploaderFileName"] {
     font-weight: 800;
     color: #0f4c5c;
     margin-bottom: 6px;
+}
+
+.premium-zone {
+    border: 1px solid #b9d7f2;
+    border-radius: 14px;
+    background: linear-gradient(180deg, #ffffff 0%, #f4f9ff 100%);
+    padding: 12px;
+    margin-top: 10px;
+}
+
+.focus-item {
+    border: 1px solid #d6e6f8;
+    border-radius: 10px;
+    padding: 10px;
+    background: #ffffff;
+    margin-bottom: 8px;
+}
+
+.focus-title {
+    font-weight: 800;
+    color: #1d4c7c;
+}
+
+.focus-signal {
+    font-size: 12px;
+    color: #475569;
+    margin-top: 2px;
+}
+
+.focus-action {
+    margin-top: 5px;
 }
 
 /* Keep disabled buttons readable */
@@ -636,6 +700,69 @@ def delete_task(task_id: str, user_key: str, customer_name: str):
     conn.commit()
 
 
+def get_user_profile(email: str):
+    row = c.execute(
+        "SELECT name, company, place FROM users WHERE email = ?",
+        (email,),
+    ).fetchone()
+    return row
+
+
+def update_user_profile(email: str, name: str, company: str, place: str):
+    c.execute(
+        """
+        UPDATE users
+        SET name = ?, company = ?, place = ?
+        WHERE email = ?
+        """,
+        (name, company, place, email),
+    )
+    conn.commit()
+
+
+def update_user_password(email: str, new_password: str):
+    c.execute(
+        """
+        UPDATE users
+        SET password = ?
+        WHERE email = ?
+        """,
+        (new_password, email),
+    )
+    conn.commit()
+
+
+def build_presentation_report(selected_row: pd.Series, options: list, ai_summary_text: str | None) -> str:
+    buffer = StringIO()
+    buffer.write("CX Retention Strategy Report\n")
+    buffer.write("===========================\n\n")
+    buffer.write(f"Account: {selected_row['customer_name']}\n")
+    buffer.write(f"Owner: {selected_row['owner']}\n")
+    buffer.write(f"Risk Level: {selected_row['risk_level']}\n")
+    buffer.write(f"Health Score: {float(selected_row['health_score']):.1f}\n")
+    buffer.write(f"Support Tickets (30d): {int(selected_row['support_tickets'])}\n")
+    buffer.write(f"Plan Value: {float(selected_row['plan_value']):.0f}\n")
+    buffer.write(f"Purchase Date: {selected_row['purchase_date']}\n")
+    buffer.write(f"Renewal Date: {selected_row['renewal_date']}\n")
+    buffer.write(f"Auto Renew Opt-Out: {'Yes' if bool(selected_row['auto_renew_opt_out']) else 'No'}\n\n")
+
+    buffer.write("Top 3 Recommended Strategies\n")
+    buffer.write("----------------------------\n")
+    for idx, opt in enumerate(options, start=1):
+        buffer.write(f"{idx}. {opt['strategy']} | Impact: {opt['impact_score']}/100 | Act Before: {opt['act_before']}\n")
+        buffer.write(f"   Play: {opt['play']}\n")
+    buffer.write("\n")
+
+    buffer.write("AI Executive Summary\n")
+    buffer.write("--------------------\n")
+    if ai_summary_text:
+        buffer.write(ai_summary_text + "\n")
+    else:
+        buffer.write("Not generated yet. Use 'Generate AI Executive Summary' in the app.\n")
+
+    return buffer.getvalue()
+
+
 def render_customer_overview_table(df_input: pd.DataFrame):
     rows = []
     for _, row in df_input.sort_values(by="priority_score", ascending=False).iterrows():
@@ -802,7 +929,7 @@ def render_premium_command_center(df_input: pd.DataFrame, selected_row: pd.Serie
     suggestion = recommend_action_for_row(selected_row)
     st.markdown(
         f"""
-        <div class="suggestion-card">
+        <div class="premium-zone suggestion-card">
             <div class="suggestion-title">Suggested Play For {escape(str(selected_row['customer_name']))}</div>
             <div>{escape(suggestion)}</div>
         </div>
@@ -819,6 +946,17 @@ def render_premium_command_center(df_input: pd.DataFrame, selected_row: pd.Serie
         }
     )
     st.dataframe(options_df, use_container_width=True)
+    report_text = build_presentation_report(
+        selected_row,
+        options,
+        st.session_state.get("ai_summary_text"),
+    )
+    st.download_button(
+        "Download Presentation Report",
+        data=report_text,
+        file_name=f"{selected_row['customer_name']}_cx_strategy_report.txt",
+        mime="text/plain",
+    )
 
     tab1, tab2, tab3 = st.tabs(["Focus Areas", "Renewal Lens", "Delta Insights"])
 
@@ -828,7 +966,17 @@ def render_premium_command_center(df_input: pd.DataFrame, selected_row: pd.Serie
             {"Focus Area": "Support Burden", "Signal": "High" if tickets >= 5 else "Controlled", "What To Do": "Resolve top recurring ticket themes before renewal cycle."},
             {"Focus Area": "Renewal Commitment", "Signal": "At Risk" if auto_opt_out else "Stable", "What To Do": "Confirm value recap and lock commercial terms early."},
         ]
-        st.dataframe(pd.DataFrame(focus_rows), use_container_width=True)
+        focus_html = "<div class='premium-zone'>"
+        for row in focus_rows:
+            focus_html += (
+                "<div class='focus-item'>"
+                f"<div class='focus-title'>{escape(row['Focus Area'])}</div>"
+                f"<div class='focus-signal'>Signal: {escape(row['Signal'])}</div>"
+                f"<div class='focus-action'>{escape(row['What To Do'])}</div>"
+                "</div>"
+            )
+        focus_html += "</div>"
+        st.markdown(focus_html, unsafe_allow_html=True)
 
     with tab2:
         c5, c6, c7 = st.columns(3)
@@ -1070,6 +1218,51 @@ with colA:
 
 with colB:
     st.write(f"👤 {st.session_state.user_name}")
+    if st.session_state.user_type == "premium" and st.session_state.user_email:
+        with st.expander("Account"):
+            profile = get_user_profile(st.session_state.user_email)
+            current_name = profile[0] if profile else st.session_state.user_name
+            current_company = profile[1] if profile else ""
+            current_place = profile[2] if profile else ""
+
+            st.markdown("**Edit Profile**")
+            with st.form("edit_profile_form"):
+                new_name = st.text_input("Name", value=current_name)
+                new_company = st.text_input("Company", value=current_company)
+                new_place = st.text_input("Place", value=current_place)
+                save_profile = st.form_submit_button("Save Profile", type="secondary")
+                if save_profile:
+                    update_user_profile(
+                        st.session_state.user_email,
+                        new_name.strip(),
+                        new_company.strip(),
+                        new_place.strip(),
+                    )
+                    st.session_state.user_name = new_name.strip() or st.session_state.user_name
+                    st.success("Profile updated.")
+                    st.rerun()
+
+            st.markdown("**Settings (Change Password)**")
+            with st.form("change_password_form"):
+                current_pwd = st.text_input("Current Password", type="password")
+                new_pwd = st.text_input("New Password", type="password")
+                confirm_pwd = st.text_input("Confirm New Password", type="password")
+                change_pwd = st.form_submit_button("Change Password", type="secondary")
+                if change_pwd:
+                    db_row = c.execute(
+                        "SELECT password FROM users WHERE email = ?",
+                        (st.session_state.user_email,),
+                    ).fetchone()
+                    if not db_row or db_row[0] != current_pwd.strip():
+                        st.error("Current password is incorrect.")
+                    elif not new_pwd.strip():
+                        st.error("New password cannot be empty.")
+                    elif new_pwd.strip() != confirm_pwd.strip():
+                        st.error("New passwords do not match.")
+                    else:
+                        update_user_password(st.session_state.user_email, new_pwd.strip())
+                        st.success("Password changed successfully.")
+
     if st.button("Logout"):
         st.session_state.clear()
         st.rerun()
@@ -1208,6 +1401,24 @@ else:
         st.markdown(f"<div class='ai-summary-card'>{escape(ai_summary_text)}</div>", unsafe_allow_html=True)
     else:
         st.info("Click 'Generate AI Executive Summary' to view insights.")
+
+# Self-help floating widget (bottom-left)
+st.markdown(
+    """
+    <details class="help-widget">
+      <summary class="help-head">Self Help</summary>
+      <div class="help-body">
+        <b>What is AI Executive Summary?</b><br/>
+        A quick account-level strategy summary with top risk, opportunity, and immediate actions.<br/><br/>
+        <b>What is Focus Area?</b><br/>
+        Priority zones for the selected customer: adoption, support burden, and renewal commitment.<br/><br/>
+        <b>What is Premium CX Intelligence Command Center?</b><br/>
+        The premium decision workspace that shows strategy options, impact scores, act-before dates, and delta insights.
+      </div>
+    </details>
+    """,
+    unsafe_allow_html=True,
+)
 
 # =============================
 # TASK TRACKER (UNCHANGED)
