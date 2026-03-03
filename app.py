@@ -4,7 +4,6 @@ import sqlite3
 import requests
 import uuid
 import hashlib
-import plotly.express as px
 from html import escape
 from datetime import datetime, date, timedelta
 
@@ -181,7 +180,7 @@ button[kind="secondary"] * {
 
 /* Remove Streamlit top black header area */
 header[data-testid="stHeader"] {
-    background: transparent !important;
+    display: none !important;
 }
 
 div[data-testid="stToolbar"] {
@@ -275,6 +274,17 @@ div[data-baseweb="select"] input {
     color: #111827 !important;
     -webkit-text-fill-color: #111827 !important;
     caret-color: #111827 !important;
+}
+
+/* Password visibility icon contrast */
+div[data-baseweb="input"] button,
+div[data-baseweb="base-input"] button {
+    opacity: 1 !important;
+    color: #0f4c5c !important;
+}
+div[data-baseweb="input"] button svg,
+div[data-baseweb="base-input"] button svg {
+    fill: #0f4c5c !important;
 }
 
 /* Placeholder color */
@@ -517,21 +527,41 @@ def recommend_options_for_row(row: pd.Series):
         discount_score += 8
         upsell_score += 10
 
+    renewal_raw = str(row.get("renewal_date", ""))
+    try:
+        renewal_dt = datetime.strptime(renewal_raw, "%Y-%m-%d").date()
+    except ValueError:
+        renewal_dt = date.today() + timedelta(days=90)
+
+    option_deadlines = {
+        "Upsell": renewal_dt - timedelta(days=75),
+        "Discount Save": renewal_dt - timedelta(days=45),
+        "Enablement Plan": renewal_dt - timedelta(days=60),
+    }
+
+    def deadline_text(strategy: str) -> str:
+        act_before = option_deadlines[strategy]
+        days_left = (act_before - date.today()).days
+        return f"{act_before.strftime('%Y-%m-%d')} ({days_left} days left)"
+
     options = [
         {
             "strategy": "Upsell",
             "impact_score": int(max(0, min(100, upsell_score))),
             "play": "Propose premium tier + add-on bundle aligned to current usage depth.",
+            "act_before": deadline_text("Upsell"),
         },
         {
             "strategy": "Discount Save",
             "impact_score": int(max(0, min(100, discount_score))),
             "play": "Offer targeted renewal discount tied to adoption milestones and auto-renew recovery.",
+            "act_before": deadline_text("Discount Save"),
         },
         {
             "strategy": "Enablement Plan",
             "impact_score": int(max(0, min(100, enablement_score))),
             "play": "Run 30-day success plan with weekly training and executive check-ins.",
+            "act_before": deadline_text("Enablement Plan"),
         },
     ]
     return sorted(options, key=lambda x: x["impact_score"], reverse=True)
@@ -729,26 +759,21 @@ Do not ask questions.
 
 
 def render_premium_command_center(df_input: pd.DataFrame, selected_row: pd.Series):
-    total = len(df_input)
-    high = int((df_input["risk_level"] == "High Risk").sum())
-    medium = int((df_input["risk_level"] == "Medium Risk").sum())
-    low = int((df_input["risk_level"] == "Low Risk").sum())
-    avg_health = float(df_input["health_score"].mean()) if total else 0.0
-    revenue_total = float(df_input["plan_value"].sum()) if total else 0.0
-    revenue_risk = float(df_input[df_input["risk_level"] == "High Risk"]["plan_value"].sum()) if total else 0.0
-    expansion_pool = float(
-        df_input[(df_input["health_score"] >= 65) & (df_input["support_tickets"] <= 2)]["plan_value"].sum()
-    ) if total else 0.0
+    health = float(selected_row["health_score"])
+    tickets = int(selected_row["support_tickets"])
+    plan_value = float(selected_row["plan_value"])
+    renewal_date = str(selected_row["renewal_date"])
+    auto_opt_out = bool(selected_row["auto_renew_opt_out"])
 
     st.markdown(
         """
         <div class="premium-hero">
             <div class="premium-hero-title">Premium CX Intelligence Command Center</div>
-            <div class="premium-hero-sub">Advanced retention and growth lens for leadership-level decisions.</div>
+            <div class="premium-hero-sub">Focused account strategy workspace for selected customer.</div>
             <div class="premium-chip-row">
-                <span class="premium-chip">Risk Forecasting</span>
-                <span class="premium-chip">Revenue-at-Risk Lens</span>
-                <span class="premium-chip">Prioritized Action Queue</span>
+                <span class="premium-chip">Account Strategy</span>
+                <span class="premium-chip">Renewal Window</span>
+                <span class="premium-chip">Retention Playbook</span>
             </div>
         </div>
         """,
@@ -757,19 +782,19 @@ def render_premium_command_center(df_input: pd.DataFrame, selected_row: pd.Serie
 
     c1, c2, c3, c4 = st.columns(4)
     c1.markdown(
-        f"<div class='premium-kpi'><div class='premium-kpi-label'>Portfolio Health</div><div class='premium-kpi-value'>{avg_health:.1f}</div></div>",
+        f"<div class='premium-kpi'><div class='premium-kpi-label'>Customer Health</div><div class='premium-kpi-value'>{health:.1f}</div></div>",
         unsafe_allow_html=True,
     )
     c2.markdown(
-        f"<div class='premium-kpi'><div class='premium-kpi-label'>High Risk Accounts</div><div class='premium-kpi-value'>{high}</div></div>",
+        f"<div class='premium-kpi'><div class='premium-kpi-label'>Risk Level</div><div class='premium-kpi-value'>{escape(str(selected_row['risk_level']))}</div></div>",
         unsafe_allow_html=True,
     )
     c3.markdown(
-        f"<div class='premium-kpi'><div class='premium-kpi-label'>Revenue At Risk</div><div class='premium-kpi-value'>{revenue_risk:,.0f}</div></div>",
+        f"<div class='premium-kpi'><div class='premium-kpi-label'>Plan Value</div><div class='premium-kpi-value'>{plan_value:,.0f}</div></div>",
         unsafe_allow_html=True,
     )
     c4.markdown(
-        f"<div class='premium-kpi'><div class='premium-kpi-label'>Expansion Pool</div><div class='premium-kpi-value'>{expansion_pool:,.0f}</div></div>",
+        f"<div class='premium-kpi'><div class='premium-kpi-label'>Renewal Date</div><div class='premium-kpi-value'>{renewal_date}</div></div>",
         unsafe_allow_html=True,
     )
 
@@ -790,62 +815,32 @@ def render_premium_command_center(df_input: pd.DataFrame, selected_row: pd.Serie
             "strategy": "Strategy",
             "impact_score": "Impact Score",
             "play": "Recommended Play",
+            "act_before": "Act Before",
         }
     )
     st.dataframe(options_df, use_container_width=True)
 
-    tab1, tab2, tab3, tab4 = st.tabs(["Risk Insights", "Revenue Lens", "Action Queue", "Delta Insights"])
+    tab1, tab2, tab3 = st.tabs(["Focus Areas", "Renewal Lens", "Delta Insights"])
 
     with tab1:
-        st.write(
-            f"Risk mix across {total} accounts: High `{high}`, Medium `{medium}`, Low `{low}`. "
-            "Use this to calibrate team capacity for save motions."
-        )
-        risk_df = pd.DataFrame(
-            {
-                "risk_level": ["High Risk", "Medium Risk", "Low Risk"],
-                "count": [high, medium, low],
-            }
-        )
-        fig = px.bar(
-            risk_df,
-            x="risk_level",
-            y="count",
-            color="risk_level",
-            color_discrete_map={
-                "High Risk": "#dc2626",
-                "Medium Risk": "#d97706",
-                "Low Risk": "#16a34a",
-            },
-            title="Risk Distribution",
-        )
-        fig.update_layout(
-            plot_bgcolor="rgba(0,0,0,0)",
-            paper_bgcolor="rgba(0,0,0,0)",
-            font=dict(color="#1f2937"),
-            showlegend=False,
-            margin=dict(l=20, r=20, t=50, b=20),
-        )
-        st.plotly_chart(fig, use_container_width=True)
+        focus_rows = [
+            {"Focus Area": "Product Adoption", "Signal": "Low" if health < 55 else "Healthy", "What To Do": "Drive weekly usage milestones + role-based onboarding."},
+            {"Focus Area": "Support Burden", "Signal": "High" if tickets >= 5 else "Controlled", "What To Do": "Resolve top recurring ticket themes before renewal cycle."},
+            {"Focus Area": "Renewal Commitment", "Signal": "At Risk" if auto_opt_out else "Stable", "What To Do": "Confirm value recap and lock commercial terms early."},
+        ]
+        st.dataframe(pd.DataFrame(focus_rows), use_container_width=True)
 
     with tab2:
-        c5, c6 = st.columns(2)
+        c5, c6, c7 = st.columns(3)
         with c5:
-            st.metric("Total Managed Revenue", f"{revenue_total:,.0f}")
+            st.metric("Support Tickets (30d)", f"{tickets}")
         with c6:
-            risk_pct = (revenue_risk / revenue_total * 100) if revenue_total else 0
-            st.metric("Revenue Risk %", f"{risk_pct:.1f}%")
-        st.caption("Track this weekly to evaluate retention motion impact.")
+            st.metric("Auto Renew Opt-Out", "Yes" if auto_opt_out else "No")
+        with c7:
+            st.metric("Primary Strategy", options[0]["strategy"])
+        st.caption("Use 'Act Before' dates in strategy options to schedule interventions.")
 
     with tab3:
-        action_df = (
-            df_input.sort_values("priority_score", ascending=False)
-            .head(5)[["customer_name", "owner", "risk_level", "priority_score"]]
-            .rename(columns={"customer_name": "Account", "owner": "Owner", "risk_level": "Risk", "priority_score": "Priority"})
-        )
-        st.dataframe(action_df, use_container_width=True)
-
-    with tab4:
         previous_df = get_previous_snapshot_df()
         if previous_df is None or previous_df.empty:
             st.info("Upload a newer CSV later to unlock change tracking vs previous upload.")
@@ -1141,14 +1136,31 @@ if st.session_state.user_type == "premium":
 
 st.subheader("Customer Overview")
 
-selected_customer = st.selectbox("Select Customer", df["customer_name"])
-selected_row = df[df["customer_name"] == selected_customer].iloc[0]
+if st.session_state.user_type == "premium":
+    csm_options = sorted(df["owner"].dropna().unique().tolist())
+    selected_csm = st.selectbox("Select CSM", csm_options)
+    scoped_df = df[df["owner"] == selected_csm].copy()
+    selected_customer = st.selectbox("Select Customer", scoped_df["customer_name"])
+else:
+    selected_customer = st.selectbox("Select Customer", df["customer_name"])
+    scoped_df = df.copy()
+
+selected_row = scoped_df[scoped_df["customer_name"] == selected_customer].iloc[0]
 if st.session_state.get("ai_summary_for_customer") != selected_customer:
     st.session_state["ai_summary_text"] = None
     st.session_state["ai_summary_for_customer"] = selected_customer
-render_customer_overview_table(
-    df[["customer_name", "owner", "health_score", "risk_level", "priority_score"]]
-)
+
+# Premium view should focus selected customer only.
+if st.session_state.user_type == "premium":
+    render_customer_overview_table(
+        scoped_df[scoped_df["customer_name"] == selected_customer][
+            ["customer_name", "owner", "health_score", "risk_level", "priority_score"]
+        ]
+    )
+else:
+    render_customer_overview_table(
+        df[["customer_name", "owner", "health_score", "risk_level", "priority_score"]]
+    )
 
 st.markdown(
     f"""
@@ -1164,7 +1176,7 @@ st.markdown(
 
 # Premium-only advanced section
 if st.session_state.user_type == "premium":
-    render_premium_command_center(df, selected_row)
+    render_premium_command_center(scoped_df, selected_row)
 
 # =============================
 # AI EXECUTIVE SUMMARY
