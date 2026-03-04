@@ -7,6 +7,8 @@ import hashlib
 from html import escape
 from datetime import datetime, date, timedelta
 from io import StringIO
+import textwrap
+import urllib.parse
 
 st.set_page_config(page_title="Customer Retention & Growth Engine", layout="wide")
 
@@ -92,17 +94,9 @@ button[kind="secondary"]:hover, .stButton > button:hover, .stDownloadButton > bu
     border-color: var(--brand-hover) !important;
 }
 
-/* Ensure all Streamlit button variants keep readable text */
-.stFileUploader button:hover {
-    background-color: #0b5f5a !important;
-    border-color: #0b5f5a !important;
-    color: #ffffff !important;
-}
-
 /* Streamlit sometimes colors inner label nodes separately; force white labels */
 .stButton > button *,
 .stDownloadButton > button *,
-.stFileUploader button *,
 .stForm button *,
 button[kind="primary"] *,
 button[kind="secondary"] * {
@@ -189,26 +183,24 @@ div[data-testid="stToolbar"] {
     height: 0 !important;
 }
 
-/* Uploader text/readability */
-section[data-testid="stFileUploader"] small,
-section[data-testid="stFileUploader"] span,
-section[data-testid="stFileUploader"] p,
-div[data-testid="stFileUploaderFileName"] {
-    color: #0f172a !important;
-    opacity: 1 !important;
-    font-weight: 700 !important;
+/* Lock uploaded file row readability */
+div[data-testid="stFileUploaderFile"] {
+    background: #ffffff !important;
+    border: 1px solid #d7e3f3 !important;
+    border-radius: 10px !important;
 }
 
-section[data-testid="stFileUploader"] {
-    border: 1.5px dashed #6aa9e9 !important;
-    border-radius: 14px !important;
-    background: linear-gradient(180deg, #ffffff 0%, #eef6ff 100%) !important;
-    padding: 10px !important;
+div[data-testid="stFileUploaderFile"] *,
+div[data-testid="stFileUploaderFileName"],
+div[data-testid="stFileUploaderFileData"] {
+    color: #0f172a !important;
+    opacity: 1 !important;
+    -webkit-text-fill-color: #0f172a !important;
 }
 
 .help-widget {
     position: fixed;
-    left: 16px;
+    right: 16px;
     bottom: 16px;
     width: 320px;
     z-index: 99999;
@@ -229,6 +221,81 @@ section[data-testid="stFileUploader"] {
 
 .help-body {
     padding: 10px 12px;
+}
+
+.help-download-wrap {
+    margin-top: 8px;
+}
+
+.csv-popup-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.35);
+    z-index: 100000;
+}
+
+.csv-popup-card {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: min(560px, 90vw);
+    background: #ffffff;
+    border: 2px solid #ef4444;
+    border-radius: 14px;
+    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.25);
+    z-index: 100001;
+    padding: 16px 18px;
+}
+
+.csv-popup-title {
+    color: #991b1b;
+    font-size: 20px;
+    font-weight: 800;
+    margin-bottom: 6px;
+}
+
+.csv-popup-body {
+    color: #1f2937;
+    line-height: 1.5;
+}
+
+/* Premium strategy table */
+.strategy-table-wrap {
+    margin-top: 10px;
+    border: 1px solid #b9d7f2;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #ffffff;
+}
+
+.strategy-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.strategy-table th, .strategy-table td {
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 1px solid #e4edf8;
+    color: #1f2937;
+    vertical-align: top;
+}
+
+.strategy-table th {
+    background: #eef6ff;
+    color: #1d4c7c;
+    font-weight: 800;
+}
+
+.impact-pill {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 800;
+    color: #0f172a;
+    background: #dbeafe;
 }
 
 .premium-kpi {
@@ -312,6 +379,37 @@ div[data-testid="metric-container"] {
     padding: 18px;
     border: 1px solid var(--line);
     box-shadow: 0 8px 18px rgba(20, 35, 58, 0.06);
+}
+
+div[data-testid="metric-container"] [data-testid="stMetricLabel"] {
+    color: #334155 !important;
+}
+
+div[data-testid="metric-container"] [data-testid="stMetricValue"] {
+    color: #0f172a !important;
+    font-weight: 800 !important;
+    opacity: 1 !important;
+    -webkit-text-fill-color: #0f172a !important;
+}
+
+div[data-testid="metric-container"] [data-testid="stMetricValue"] * {
+    color: #0f172a !important;
+    opacity: 1 !important;
+    -webkit-text-fill-color: #0f172a !important;
+}
+
+div[data-testid="metric-container"] [data-testid="stMetricDelta"] {
+    color: #0f4c5c !important;
+}
+
+/* Tab and caption readability */
+button[role="tab"] {
+    color: #1f2937 !important;
+    font-weight: 700 !important;
+}
+
+div[data-testid="stCaptionContainer"] {
+    color: #334155 !important;
 }
 
 /* Forms and expanders */
@@ -548,6 +646,246 @@ def assign_csm_fields(df_input: pd.DataFrame) -> pd.DataFrame:
     return df_assigned
 
 
+def validate_required_columns(df_input: pd.DataFrame, required_cols: list, label: str):
+    missing = [c for c in required_cols if c not in df_input.columns]
+    if missing:
+        return f"{label} is missing required columns: {', '.join(missing)}"
+    return None
+
+
+def show_csv_error_popup(message: str):
+    st.markdown(
+        f"""
+        <div class="csv-popup-backdrop"></div>
+        <div class="csv-popup-card">
+          <div class="csv-popup-title">Incorrect CSV format</div>
+          <div class="csv-popup-body">
+            Incorrect format, refer <b>Self Help</b> to see the CSV format and then reupload.<br/><br/>
+            <b>Details:</b> {escape(message)}
+          </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def build_empty_csv_template(headers: list[str]) -> str:
+    return ",".join(headers) + "\n"
+
+
+def build_csv_download_data_uri(headers: list[str]) -> str:
+    csv_text = build_empty_csv_template(headers)
+    return "data:text/csv;charset=utf-8," + urllib.parse.quote(csv_text)
+
+
+def prepare_multisource_customer_df(
+    customers_df: pd.DataFrame,
+    feature_adoption_df: pd.DataFrame,
+    usage_df: pd.DataFrame,
+    subscriptions_df: pd.DataFrame,
+):
+    err = validate_required_columns(
+        customers_df,
+        ["customer_id", "company_name", "account_owner", "customer_since"],
+        "new_customers.csv",
+    )
+    if err:
+        return None, err
+
+    err = validate_required_columns(
+        feature_adoption_df,
+        ["customer_id", "adoption_percentage", "last_used_days"],
+        "feature_adoption.csv",
+    )
+    if err:
+        return None, err
+
+    err = validate_required_columns(
+        usage_df,
+        ["customer_id", "month", "login_frequency", "renewal_risk_score", "health_score", "shadow_it_apps_detected"],
+        "usage_metrics.csv",
+    )
+    if err:
+        return None, err
+
+    err = validate_required_columns(
+        subscriptions_df,
+        ["customer_id", "annual_contract_value", "contract_start", "contract_end", "renewal_status"],
+        "subscriptions.csv",
+    )
+    if err:
+        return None, err
+
+    base = customers_df.copy()
+    base["customer_id"] = base["customer_id"].astype(str).str.strip()
+    base["company_name"] = base["company_name"].astype(str).str.strip()
+
+    usage = usage_df.copy()
+    usage["customer_id"] = usage["customer_id"].astype(str).str.strip()
+    usage["month_dt"] = pd.to_datetime(usage["month"], errors="coerce")
+    usage = usage.sort_values(["customer_id", "month_dt"])
+    latest_usage = usage.groupby("customer_id", as_index=False).tail(1)
+
+    adoption = feature_adoption_df.copy()
+    adoption["customer_id"] = adoption["customer_id"].astype(str).str.strip()
+    adoption["adoption_percentage"] = pd.to_numeric(adoption["adoption_percentage"], errors="coerce")
+    adoption["last_used_days"] = pd.to_numeric(adoption["last_used_days"], errors="coerce")
+    adoption_agg = (
+        adoption.groupby("customer_id", as_index=False)
+        .agg(
+            avg_adoption_pct=("adoption_percentage", "mean"),
+            stale_features=("last_used_days", lambda s: int((s.fillna(0) > 30).sum())),
+        )
+    )
+
+    subs = subscriptions_df.copy()
+    subs["customer_id"] = subs["customer_id"].astype(str).str.strip()
+    subs["annual_contract_value"] = pd.to_numeric(subs["annual_contract_value"], errors="coerce")
+
+    merged = base.merge(
+        latest_usage[
+            [
+                "customer_id",
+                "month",
+                "login_frequency",
+                "renewal_risk_score",
+                "health_score",
+                "shadow_it_apps_detected",
+                "unused_licenses",
+                "active_users",
+            ]
+        ],
+        on="customer_id",
+        how="left",
+    ).merge(
+        adoption_agg,
+        on="customer_id",
+        how="left",
+    ).merge(
+        subs[
+            [
+                "customer_id",
+                "annual_contract_value",
+                "contract_start",
+                "contract_end",
+                "renewal_status",
+                "plan_type",
+                "total_licenses",
+            ]
+        ],
+        on="customer_id",
+        how="left",
+    )
+
+    # Keep all customers from base and fill defaults for missing linked rows.
+    merged["login_frequency"] = pd.to_numeric(merged["login_frequency"], errors="coerce").fillna(20)
+    merged["renewal_risk_score"] = pd.to_numeric(merged["renewal_risk_score"], errors="coerce").fillna(35)
+    merged["shadow_it_apps_detected"] = pd.to_numeric(merged["shadow_it_apps_detected"], errors="coerce").fillna(0)
+    merged["avg_adoption_pct"] = pd.to_numeric(merged["avg_adoption_pct"], errors="coerce").fillna(50)
+    merged["annual_contract_value"] = pd.to_numeric(merged["annual_contract_value"], errors="coerce").fillna(50000)
+    merged["health_score"] = pd.to_numeric(merged["health_score"], errors="coerce").fillna(65)
+
+    # Map to app-required schema.
+    out = pd.DataFrame()
+    out["customer_id"] = merged["customer_id"]
+    out["customer_name"] = merged["company_name"]
+    out["owner"] = merged["account_owner"].fillna("Assigned CSM")
+    out["manager"] = "Manager"
+    out["logins_last_30_days"] = merged["login_frequency"].round(0).astype(int)
+    out["support_tickets"] = (
+        (merged["renewal_risk_score"] / 12)
+        + (merged["shadow_it_apps_detected"] / 2)
+        + ((100 - merged["avg_adoption_pct"]) / 25)
+    ).round(0).clip(lower=0).astype(int)
+    out["plan_value"] = merged["annual_contract_value"].round(0).astype(int)
+
+    # Extra useful fields for premium views.
+    out["industry"] = merged.get("industry", "Unknown")
+    out["segment"] = merged.get("segment", "Unknown")
+    out["region"] = merged.get("region", "Unknown")
+    out["customer_since"] = merged.get("customer_since", "")
+    out["avg_adoption_pct"] = merged["avg_adoption_pct"].round(1)
+    out["renewal_status"] = merged["renewal_status"].fillna("Active")
+    out["plan_type"] = merged.get("plan_type", "Standard").fillna("Standard")
+    out["contract_start"] = merged["contract_start"].fillna("")
+    out["contract_end"] = merged["contract_end"].fillna("")
+    out["reporting_month"] = merged["month"].fillna("N/A")
+
+    return out, None
+
+
+def prepare_integrated_customer_df(full_df: pd.DataFrame):
+    required = [
+        "customer_id",
+        "company_name",
+        "industry",
+        "segment",
+        "employees",
+        "region",
+        "plan_type",
+        "contract_start",
+        "contract_end",
+        "annual_contract_value",
+        "total_licenses",
+        "active_users",
+        "login_frequency",
+        "unused_licenses",
+        "shadow_it_apps_detected",
+        "engagement_score",
+        "renewal_risk_score",
+        "health_score",
+        "feature_adoption_score",
+    ]
+    err = validate_required_columns(full_df, required, "cx_retention_customers_full_dataset.csv")
+    if err:
+        return None, err
+
+    df = full_df.copy()
+    df["customer_id"] = df["customer_id"].astype(str).str.strip()
+    df["company_name"] = df["company_name"].astype(str).str.strip()
+
+    numeric_cols = [
+        "annual_contract_value",
+        "login_frequency",
+        "shadow_it_apps_detected",
+        "renewal_risk_score",
+        "health_score",
+        "feature_adoption_score",
+    ]
+    for col in numeric_cols:
+        df[col] = pd.to_numeric(df[col], errors="coerce")
+
+    df["annual_contract_value"] = df["annual_contract_value"].fillna(50000)
+    df["login_frequency"] = df["login_frequency"].fillna(20)
+    df["shadow_it_apps_detected"] = df["shadow_it_apps_detected"].fillna(0)
+    df["renewal_risk_score"] = df["renewal_risk_score"].fillna(35)
+    df["feature_adoption_score"] = df["feature_adoption_score"].fillna(50)
+    df["health_score"] = df["health_score"].fillna(65)
+
+    out = pd.DataFrame()
+    out["customer_id"] = df["customer_id"]
+    out["customer_name"] = df["company_name"]
+    out["logins_last_30_days"] = df["login_frequency"].round(0).astype(int)
+    out["support_tickets"] = (
+        (df["renewal_risk_score"] / 12)
+        + (df["shadow_it_apps_detected"] / 2)
+        + ((100 - df["feature_adoption_score"]) / 25)
+    ).round(0).clip(lower=0).astype(int)
+    out["plan_value"] = df["annual_contract_value"].round(0).astype(int)
+    out["industry"] = df["industry"]
+    out["segment"] = df["segment"]
+    out["region"] = df["region"]
+    out["plan_type"] = df["plan_type"]
+    out["contract_start"] = df["contract_start"]
+    out["contract_end"] = df["contract_end"]
+    out["feature_adoption_score"] = df["feature_adoption_score"]
+    out["avg_adoption_pct"] = df["feature_adoption_score"].round(1)
+    out["reporting_month"] = "Latest"
+    out["renewal_status"] = "Active"
+    out = assign_csm_fields(out)
+    return out, None
+
+
 def recommend_options_for_row(row: pd.Series):
     risk = row.get("risk_level", "")
     health = float(row.get("health_score", 0))
@@ -763,6 +1101,68 @@ def build_presentation_report(selected_row: pd.Series, options: list, ai_summary
     return buffer.getvalue()
 
 
+def build_simple_pdf_from_text(text: str) -> bytes:
+    def esc(s: str) -> str:
+        return s.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+
+    wrapped_lines = []
+    for raw in text.splitlines():
+        parts = textwrap.wrap(raw, width=95) or [""]
+        wrapped_lines.extend(parts)
+
+    lines_per_page = 45
+    pages = [wrapped_lines[i:i + lines_per_page] for i in range(0, len(wrapped_lines), lines_per_page)] or [[""]]
+
+    objects = []
+    kids_refs = []
+
+    # 1: Catalog, 2: Pages, 3: Font
+    objects.append("<< /Type /Catalog /Pages 2 0 R >>")
+    objects.append(None)  # Pages placeholder
+    objects.append("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>")
+
+    obj_num = 4
+    for page_lines in pages:
+        page_obj = obj_num
+        content_obj = obj_num + 1
+        kids_refs.append(f"{page_obj} 0 R")
+
+        stream_lines = ["BT", "/F1 11 Tf", "50 790 Td", "14 TL"]
+        for line in page_lines:
+            stream_lines.append(f"({esc(line)}) Tj")
+            stream_lines.append("T*")
+        stream_lines.append("ET")
+        stream = "\n".join(stream_lines)
+        stream_bytes = stream.encode("latin-1", errors="replace")
+
+        page_dict = (
+            f"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] "
+            f"/Resources << /Font << /F1 3 0 R >> >> /Contents {content_obj} 0 R >>"
+        )
+        content_dict = f"<< /Length {len(stream_bytes)} >>\nstream\n{stream}\nendstream"
+
+        objects.append(page_dict)
+        objects.append(content_dict)
+        obj_num += 2
+
+    objects[1] = f"<< /Type /Pages /Kids [{' '.join(kids_refs)}] /Count {len(kids_refs)} >>"
+
+    pdf = "%PDF-1.4\n"
+    offsets = [0]
+    for i, obj in enumerate(objects, start=1):
+        offsets.append(len(pdf.encode("latin-1")))
+        pdf += f"{i} 0 obj\n{obj}\nendobj\n"
+
+    xref_start = len(pdf.encode("latin-1"))
+    pdf += f"xref\n0 {len(objects)+1}\n"
+    pdf += "0000000000 65535 f \n"
+    for off in offsets[1:]:
+        pdf += f"{off:010d} 00000 n \n"
+    pdf += f"trailer << /Size {len(objects)+1} /Root 1 0 R >>\nstartxref\n{xref_start}\n%%EOF"
+
+    return pdf.encode("latin-1", errors="replace")
+
+
 def render_customer_overview_table(df_input: pd.DataFrame):
     rows = []
     for _, row in df_input.sort_values(by="priority_score", ascending=False).iterrows():
@@ -837,6 +1237,36 @@ def render_task_table(df_input: pd.DataFrame):
     )
 
 
+def render_strategy_table(options: list):
+    rows = []
+    for opt in options:
+        rows.append(
+            "<tr>"
+            f"<td>{escape(opt['strategy'])}</td>"
+            f"<td><span class='impact-pill'>{int(opt['impact_score'])}/100</span></td>"
+            f"<td>{escape(opt['play'])}</td>"
+            f"<td>{escape(opt['act_before'])}</td>"
+            "</tr>"
+        )
+
+    header = (
+        "<thead><tr>"
+        "<th>Strategy</th>"
+        "<th>Impact Score</th>"
+        "<th>Recommended Play</th>"
+        "<th>Act Before</th>"
+        "</tr></thead>"
+    )
+    body = "<tbody>" + "".join(rows) + "</tbody>"
+    st.markdown(
+        "<div class='strategy-table-wrap'><table class='strategy-table'>"
+        + header
+        + body
+        + "</table></div>",
+        unsafe_allow_html=True,
+    )
+
+
 def build_ai_summary(df_input: pd.DataFrame, selected_row: pd.Series | None = None) -> str:
     if selected_row is None:
         selected_row = df_input.sort_values("priority_score", ascending=False).iloc[0]
@@ -885,18 +1315,34 @@ Do not ask questions.
     )
 
 
-def render_premium_command_center(df_input: pd.DataFrame, selected_row: pd.Series):
-    health = float(selected_row["health_score"])
-    tickets = int(selected_row["support_tickets"])
-    plan_value = float(selected_row["plan_value"])
-    renewal_date = str(selected_row["renewal_date"])
-    auto_opt_out = bool(selected_row["auto_renew_opt_out"])
+def render_premium_command_center(df_input: pd.DataFrame, selected_row: pd.Series | None, selected_customer_label: str):
+    is_all_customers = selected_row is None
+    if is_all_customers:
+        health = float(df_input["health_score"].mean()) if len(df_input) else 0.0
+        tickets = int(df_input["support_tickets"].mean()) if len(df_input) else 0
+        plan_value = float(df_input["plan_value"].sum()) if len(df_input) else 0.0
+        next_renewal = min(df_input["renewal_date"].tolist()) if len(df_input) else "-"
+        renewal_date = str(next_renewal)
+        auto_opt_out = bool(df_input["auto_renew_opt_out"].sum() > 0) if len(df_input) else False
+        top_idx = df_input["priority_score"].idxmax() if len(df_input) else None
+        focus_row = df_input.loc[top_idx] if top_idx is not None else None
+        avg_adoption = float(df_input["avg_adoption_pct"].mean()) if "avg_adoption_pct" in df_input.columns and len(df_input) else 0.0
+        report_month = str(df_input["reporting_month"].mode().iloc[0]) if "reporting_month" in df_input.columns and len(df_input) else "N/A"
+    else:
+        health = float(selected_row["health_score"])
+        tickets = int(selected_row["support_tickets"])
+        plan_value = float(selected_row["plan_value"])
+        renewal_date = str(selected_row["renewal_date"])
+        auto_opt_out = bool(selected_row["auto_renew_opt_out"])
+        focus_row = selected_row
+        avg_adoption = float(selected_row.get("avg_adoption_pct", 0))
+        report_month = str(selected_row.get("reporting_month", "N/A"))
 
     st.markdown(
         """
         <div class="premium-hero">
             <div class="premium-hero-title">Premium CX Intelligence Command Center</div>
-            <div class="premium-hero-sub">Focused account strategy workspace for selected customer.</div>
+            <div class="premium-hero-sub">Now analyzing: """ + escape(str(selected_customer_label)) + """</div>
             <div class="premium-chip-row">
                 <span class="premium-chip">Account Strategy</span>
                 <span class="premium-chip">Renewal Window</span>
@@ -913,7 +1359,7 @@ def render_premium_command_center(df_input: pd.DataFrame, selected_row: pd.Serie
         unsafe_allow_html=True,
     )
     c2.markdown(
-        f"<div class='premium-kpi'><div class='premium-kpi-label'>Risk Level</div><div class='premium-kpi-value'>{escape(str(selected_row['risk_level']))}</div></div>",
+        f"<div class='premium-kpi'><div class='premium-kpi-label'>Risk Level</div><div class='premium-kpi-value'>{escape(str(focus_row['risk_level']) if focus_row is not None else '-')}</div></div>",
         unsafe_allow_html=True,
     )
     c3.markdown(
@@ -924,39 +1370,43 @@ def render_premium_command_center(df_input: pd.DataFrame, selected_row: pd.Serie
         f"<div class='premium-kpi'><div class='premium-kpi-label'>Renewal Date</div><div class='premium-kpi-value'>{renewal_date}</div></div>",
         unsafe_allow_html=True,
     )
+    c5, c6 = st.columns(2)
+    c5.markdown(
+        f"<div class='premium-kpi'><div class='premium-kpi-label'>Avg Adoption %</div><div class='premium-kpi-value'>{avg_adoption:.1f}</div></div>",
+        unsafe_allow_html=True,
+    )
+    c6.markdown(
+        f"<div class='premium-kpi'><div class='premium-kpi-label'>Reporting Month</div><div class='premium-kpi-value'>{escape(report_month)}</div></div>",
+        unsafe_allow_html=True,
+    )
 
-    options = recommend_options_for_row(selected_row)
-    suggestion = recommend_action_for_row(selected_row)
+    options = recommend_options_for_row(focus_row) if focus_row is not None else []
+    suggestion = recommend_action_for_row(focus_row) if focus_row is not None else "No recommendation available."
     st.markdown(
         f"""
         <div class="premium-zone suggestion-card">
-            <div class="suggestion-title">Suggested Play For {escape(str(selected_row['customer_name']))}</div>
+            <div class="suggestion-title">Suggested Play For {escape(str(selected_customer_label))}</div>
             <div>{escape(suggestion)}</div>
         </div>
         """,
         unsafe_allow_html=True,
     )
-    options_df = pd.DataFrame(options)
-    options_df = options_df.rename(
-        columns={
-            "strategy": "Strategy",
-            "impact_score": "Impact Score",
-            "play": "Recommended Play",
-            "act_before": "Act Before",
-        }
-    )
-    st.dataframe(options_df, use_container_width=True)
-    report_text = build_presentation_report(
-        selected_row,
-        options,
-        st.session_state.get("ai_summary_text"),
-    )
-    st.download_button(
-        "Download Presentation Report",
-        data=report_text,
-        file_name=f"{selected_row['customer_name']}_cx_strategy_report.txt",
-        mime="text/plain",
-    )
+    if options:
+        render_strategy_table(options)
+        report_target = focus_row if is_all_customers else selected_row
+        report_text = build_presentation_report(
+            report_target,
+            options,
+            st.session_state.get("ai_summary_text"),
+        )
+        report_pdf = build_simple_pdf_from_text(report_text)
+        file_label = "all_customers" if is_all_customers else str(selected_row["customer_name"])
+        st.download_button(
+            "Download Presentation Report",
+            data=report_pdf,
+            file_name=f"{file_label}_cx_strategy_report.pdf",
+            mime="application/pdf",
+        )
 
     tab1, tab2, tab3 = st.tabs(["Focus Areas", "Renewal Lens", "Delta Insights"])
 
@@ -980,12 +1430,18 @@ def render_premium_command_center(df_input: pd.DataFrame, selected_row: pd.Serie
 
     with tab2:
         c5, c6, c7 = st.columns(3)
-        with c5:
-            st.metric("Support Tickets (30d)", f"{tickets}")
-        with c6:
-            st.metric("Auto Renew Opt-Out", "Yes" if auto_opt_out else "No")
-        with c7:
-            st.metric("Primary Strategy", options[0]["strategy"])
+        c5.markdown(
+            f"<div class='premium-kpi'><div class='premium-kpi-label'>Support Tickets (30d)</div><div class='premium-kpi-value'>{tickets}</div></div>",
+            unsafe_allow_html=True,
+        )
+        c6.markdown(
+            f"<div class='premium-kpi'><div class='premium-kpi-label'>Auto Renew Opt-Out</div><div class='premium-kpi-value'>{'Yes' if auto_opt_out else 'No'}</div></div>",
+            unsafe_allow_html=True,
+        )
+        c7.markdown(
+            f"<div class='premium-kpi'><div class='premium-kpi-label'>Primary Strategy</div><div class='premium-kpi-value'>{escape(options[0]['strategy']) if options else '-'}</div></div>",
+            unsafe_allow_html=True,
+        )
         st.caption("Use 'Act Before' dates in strategy options to schedule interventions.")
 
     with tab3:
@@ -1211,7 +1667,7 @@ if not st.session_state.logged_in:
 # HEADER
 # =============================
 
-colA, colB = st.columns([8, 1])
+colA, colB = st.columns([7, 3])
 
 with colA:
     st.title("Customer Retention & Growth Engine")
@@ -1219,7 +1675,7 @@ with colA:
 with colB:
     st.write(f"👤 {st.session_state.user_name}")
     if st.session_state.user_type == "premium" and st.session_state.user_email:
-        with st.expander("Account"):
+        with st.popover("Account"):
             profile = get_user_profile(st.session_state.user_email)
             current_name = profile[0] if profile else st.session_state.user_name
             current_company = profile[1] if profile else ""
@@ -1240,7 +1696,6 @@ with colB:
                     )
                     st.session_state.user_name = new_name.strip() or st.session_state.user_name
                     st.success("Profile updated.")
-                    st.rerun()
 
             st.markdown("**Settings (Change Password)**")
             with st.form("change_password_form"):
@@ -1269,6 +1724,49 @@ with colB:
 
 st.markdown("---")
 
+# Self-help floating widget (bottom-right) - render before data gating
+template_headers = [
+    "customer_id",
+    "company_name",
+    "industry",
+    "segment",
+    "employees",
+    "region",
+    "plan_type",
+    "contract_start",
+    "contract_end",
+    "annual_contract_value",
+    "total_licenses",
+    "active_users",
+    "login_frequency",
+    "unused_licenses",
+    "shadow_it_apps_detected",
+    "engagement_score",
+    "renewal_risk_score",
+    "health_score",
+    "feature_adoption_score",
+]
+template_href = build_csv_download_data_uri(template_headers)
+
+st.markdown(
+    f"""
+    <details class="help-widget" open>
+      <summary class="help-head">Self Help</summary>
+      <div class="help-body">
+        <b>CSV Format & Templates</b><br/>
+        <a href="{template_href}" download="cx_retention_customers_full_dataset_template.csv">Download CSV Template</a><br/><br/>
+        <b>What is AI Executive Summary?</b><br/>
+        A quick account-level strategy summary with top risk, opportunity, and immediate actions.<br/><br/>
+        <b>What is Focus Area?</b><br/>
+        Priority zones for the selected customer: adoption, support burden, and renewal commitment.<br/><br/>
+        <b>What is Premium CX Intelligence Command Center?</b><br/>
+        The premium decision workspace that shows strategy options, impact scores, act-before dates, and delta insights.
+      </div>
+    </details>
+    """,
+    unsafe_allow_html=True,
+)
+
 # =============================
 # DATA
 # =============================
@@ -1283,15 +1781,24 @@ if st.session_state.user_type == "demo":
         "plan_value": [1500, 900, 2000, 800, 3000]
     })
 else:
-    uploaded = st.file_uploader("Upload Customer CSV", type=["csv"])
-    if uploaded:
-        raw_df = pd.read_csv(uploaded)
-        df, error_msg = validate_and_prepare_customer_df(raw_df)
+    up_full = st.file_uploader(
+        "Upload",
+        type=["csv"],
+        key="up_full_dataset",
+    )
+
+    if up_full:
+        full_df = pd.read_csv(up_full)
+        df, error_msg = prepare_integrated_customer_df(full_df)
         if error_msg:
-            st.error(error_msg)
+            show_csv_error_popup(error_msg)
             st.stop()
+
+        st.success(
+            f"Integrated dataset ready: {len(df)} customers loaded from one CSV."
+        )
     else:
-        st.info("Upload CSV to continue.")
+        st.info("Upload the integrated CSV file to continue.")
         st.stop()
 
 df = enrich_contract_fields(df)
@@ -1330,25 +1837,26 @@ if st.session_state.user_type == "premium":
 st.subheader("Customer Overview")
 
 if st.session_state.user_type == "premium":
-    csm_options = sorted(df["owner"].dropna().unique().tolist())
-    selected_csm = st.selectbox("Select CSM", csm_options)
-    scoped_df = df[df["owner"] == selected_csm].copy()
-    selected_customer = st.selectbox("Select Customer", scoped_df["customer_name"])
+    csm_options = ["All CSM"] + sorted(df["owner"].dropna().unique().tolist())
+    selected_csm = st.selectbox("Select CSM", csm_options, key="premium_csm_select")
+    scoped_df = df.copy() if selected_csm == "All CSM" else df[df["owner"] == selected_csm].copy()
+    customer_options = ["All Customers"] + scoped_df["customer_name"].tolist()
+    selected_customer = st.selectbox("Select Customer", customer_options, key="premium_customer_select")
 else:
-    selected_customer = st.selectbox("Select Customer", df["customer_name"])
+    selected_customer = st.selectbox("Select Customer", df["customer_name"], key="demo_customer_select")
     scoped_df = df.copy()
 
-selected_row = scoped_df[scoped_df["customer_name"] == selected_customer].iloc[0]
-if st.session_state.get("ai_summary_for_customer") != selected_customer:
+selected_row = None if selected_customer == "All Customers" else scoped_df[scoped_df["customer_name"] == selected_customer].iloc[0]
+summary_key = f"{selected_csm}:{selected_customer}" if st.session_state.user_type == "premium" else selected_customer
+if st.session_state.get("ai_summary_for_customer") != summary_key:
     st.session_state["ai_summary_text"] = None
-    st.session_state["ai_summary_for_customer"] = selected_customer
+    st.session_state["ai_summary_for_customer"] = summary_key
 
 # Premium view should focus selected customer only.
 if st.session_state.user_type == "premium":
+    premium_overview_df = scoped_df if selected_customer == "All Customers" else scoped_df[scoped_df["customer_name"] == selected_customer]
     render_customer_overview_table(
-        scoped_df[scoped_df["customer_name"] == selected_customer][
-            ["customer_name", "owner", "health_score", "risk_level", "priority_score"]
-        ]
+        premium_overview_df[["customer_name", "owner", "health_score", "risk_level", "priority_score"]]
     )
 else:
     render_customer_overview_table(
@@ -1359,9 +1867,9 @@ st.markdown(
     f"""
     <div class='suggestion-card'>
         <div class='suggestion-title'>Contract Snapshot: {escape(str(selected_customer))}</div>
-        <div>Purchase Date: <b>{escape(str(selected_row['purchase_date']))}</b></div>
-        <div>Renewal Date: <b>{escape(str(selected_row['renewal_date']))}</b></div>
-        <div>Auto Renew Opt-Out: <b>{'Yes' if bool(selected_row['auto_renew_opt_out']) else 'No'}</b></div>
+        <div>Purchase Date: <b>{escape(str(selected_row['purchase_date']) if selected_row is not None else 'Mixed')}</b></div>
+        <div>Renewal Date: <b>{escape(str(selected_row['renewal_date']) if selected_row is not None else 'Multiple')}</b></div>
+        <div>Auto Renew Opt-Out: <b>{('Yes' if bool(selected_row['auto_renew_opt_out']) else 'No') if selected_row is not None else 'Mixed'}</b></div>
     </div>
     """,
     unsafe_allow_html=True,
@@ -1369,7 +1877,7 @@ st.markdown(
 
 # Premium-only advanced section
 if st.session_state.user_type == "premium":
-    render_premium_command_center(scoped_df, selected_row)
+    render_premium_command_center(scoped_df, selected_row, selected_customer)
 
 # =============================
 # AI EXECUTIVE SUMMARY
@@ -1394,31 +1902,14 @@ if st.session_state.user_type == "demo":
     )
 else:
     if st.button("Generate AI Executive Summary", type="secondary"):
-        st.session_state["ai_summary_text"] = build_ai_summary(df, selected_row)
-        st.session_state["ai_summary_for_customer"] = selected_customer
+        summary_df = scoped_df if st.session_state.user_type == "premium" else df
+        st.session_state["ai_summary_text"] = build_ai_summary(summary_df, selected_row)
+        st.session_state["ai_summary_for_customer"] = summary_key
     ai_summary_text = st.session_state.get("ai_summary_text")
     if ai_summary_text:
         st.markdown(f"<div class='ai-summary-card'>{escape(ai_summary_text)}</div>", unsafe_allow_html=True)
     else:
         st.info("Click 'Generate AI Executive Summary' to view insights.")
-
-# Self-help floating widget (bottom-left)
-st.markdown(
-    """
-    <details class="help-widget">
-      <summary class="help-head">Self Help</summary>
-      <div class="help-body">
-        <b>What is AI Executive Summary?</b><br/>
-        A quick account-level strategy summary with top risk, opportunity, and immediate actions.<br/><br/>
-        <b>What is Focus Area?</b><br/>
-        Priority zones for the selected customer: adoption, support burden, and renewal commitment.<br/><br/>
-        <b>What is Premium CX Intelligence Command Center?</b><br/>
-        The premium decision workspace that shows strategy options, impact scores, act-before dates, and delta insights.
-      </div>
-    </details>
-    """,
-    unsafe_allow_html=True,
-)
 
 # =============================
 # TASK TRACKER (UNCHANGED)
