@@ -621,6 +621,95 @@ CREATE TABLE IF NOT EXISTS tasks (
     due_date TEXT NOT NULL
 )
 """)
+
+
+def ensure_schema_migrations():
+    user_cols = [row[1] for row in c.execute("PRAGMA table_info(users)").fetchall()]
+    if "role" not in user_cols:
+        c.execute("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'csm'")
+        c.execute("UPDATE users SET role = 'csm' WHERE role IS NULL OR role = ''")
+
+    c.execute(
+        """
+        CREATE TABLE IF NOT EXISTS customer_assignments (
+            customer_name TEXT PRIMARY KEY,
+            assigned_email TEXT NOT NULL,
+            assigned_by TEXT,
+            assigned_at TEXT
+        )
+        """
+    )
+    conn.commit()
+
+
+def email_domain(email: str) -> str:
+    parts = (email or "").split("@")
+    return parts[1].lower().strip() if len(parts) == 2 else ""
+
+
+def get_same_domain_users(user_email: str, include_admin: bool = True):
+    domain = email_domain(user_email)
+    if not domain:
+        return []
+    if include_admin:
+        rows = c.execute(
+            "SELECT name, email, role FROM users WHERE lower(email) LIKE ? ORDER BY name ASC",
+            (f"%@{domain}",),
+        ).fetchall()
+    else:
+        rows = c.execute(
+            "SELECT name, email, role FROM users WHERE role = 'csm' AND lower(email) LIKE ? ORDER BY name ASC",
+            (f"%@{domain}",),
+        ).fetchall()
+    return rows
+
+
+def get_assignment_map() -> dict:
+    rows = c.execute("SELECT customer_name, assigned_email FROM customer_assignments").fetchall()
+    return {str(r[0]): str(r[1]).lower() for r in rows}
+
+
+def upsert_customer_assignment(customer_name: str, assigned_email: str, assigned_by: str):
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    c.execute(
+        """
+        INSERT INTO customer_assignments (customer_name, assigned_email, assigned_by, assigned_at)
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT(customer_name)
+        DO UPDATE SET assigned_email=excluded.assigned_email, assigned_by=excluded.assigned_by, assigned_at=excluded.assigned_at
+        """,
+        (customer_name, assigned_email.lower(), assigned_by.lower(), now),
+    )
+    conn.commit()
+
+
+def apply_assignment_overlay(df_input: pd.DataFrame) -> pd.DataFrame:
+    df_out = df_input.copy()
+    assignment_map = get_assignment_map()
+    if not assignment_map:
+        df_out["assigned_email"] = ""
+        return df_out
+
+    df_out["assigned_email"] = df_out["customer_name"].map(assignment_map).fillna("")
+    user_rows = c.execute("SELECT email, name FROM users").fetchall()
+    name_map = {str(r[0]).lower(): str(r[1]) for r in user_rows}
+    mask = df_out["assigned_email"] != ""
+    df_out.loc[mask, "owner"] = df_out.loc[mask, "assigned_email"].map(name_map).fillna(df_out.loc[mask, "owner"])
+    return df_out
+
+
+def filter_visible_accounts(df_input: pd.DataFrame, user_email: str, user_role: str) -> pd.DataFrame:
+    if user_role == "admin":
+        return df_input.copy()
+    email = (user_email or "").lower().strip()
+    if not email:
+        return df_input.iloc[0:0].copy()
+    if "assigned_email" not in df_input.columns:
+        return df_input.iloc[0:0].copy()
+    return df_input[df_input["assigned_email"].str.lower() == email].copy()
+
+
+ensure_schema_migrations()
 conn.commit()
 
 
@@ -1763,6 +1852,9 @@ if "user_name" not in st.session_state:
 if "user_email" not in st.session_state:
     st.session_state.user_email = None
 
+if "user_role" not in st.session_state:
+    st.session_state.user_role = None
+
 if "signup_success" not in st.session_state:
     st.session_state.signup_success = None
 
@@ -1811,6 +1903,7 @@ if not st.session_state.logged_in:
                     st.session_state.user_type = "demo"
                     st.session_state.user_name = "Freeuser"
                     st.session_state.user_email = "demo@local"
+                    st.session_state.user_role = "demo"
                     st.rerun()
                 else:
                     st.error("Invalid Demo Credentials")
@@ -1823,13 +1916,27 @@ if not st.session_state.logged_in:
             if st.button("Login Premium"):
                 login_email = email.strip().lower()
                 login_password = password.strip()
-                c.execute("SELECT * FROM users WHERE email=? AND password=?", (login_email, login_password))
+                c.execute(
+                    "SELECT name, company, email, place, password, COALESCE(role, 'csm') FROM users WHERE email=? AND password=?",
+                    (login_email, login_password),
+                )
                 user = c.fetchone()
                 if user:
+                    domain = email_domain(login_email)
+                    if domain:
+                        admin_count = c.execute(
+                            "SELECT COUNT(*) FROM users WHERE role='admin' AND lower(email) LIKE ?",
+                            (f"%@{domain}",),
+                        ).fetchone()[0]
+                        if admin_count == 0:
+                            c.execute("UPDATE users SET role='admin' WHERE email=?", (login_email,))
+                            conn.commit()
+                            user = (user[0], user[1], user[2], user[3], user[4], "admin")
                     st.session_state.logged_in = True
                     st.session_state.user_type = "premium"
                     st.session_state.user_name = user[0]
                     st.session_state.user_email = user[2]
+                    st.session_state.user_role = user[5] or "csm"
                     st.rerun()
                 else:
                     st.error("Invalid Credentials")
@@ -1854,15 +1961,29 @@ if not st.session_state.logged_in:
 
                 if not signup_name or not signup_email or not signup_password:
                     st.error("Name, Email, and Password are required")
+                elif "@" not in signup_email:
+                    st.error("Please enter a valid company email.")
                 elif signup_password != signup_confirm:
                     st.error("Passwords do not match")
                 else:
                     try:
-                        c.execute("INSERT INTO users VALUES (?,?,?,?,?)",
-                                  (signup_name, signup_company, signup_email, signup_place, signup_password))
+                        domain = email_domain(signup_email)
+                        admin_count = c.execute(
+                            "SELECT COUNT(*) FROM users WHERE role='admin' AND lower(email) LIKE ?",
+                            (f"%@{domain}",),
+                        ).fetchone()[0]
+                        signup_role = "admin" if admin_count == 0 else "csm"
+                        c.execute(
+                            "INSERT INTO users (name, company, email, place, password, role) VALUES (?,?,?,?,?,?)",
+                            (signup_name, signup_company, signup_email, signup_place, signup_password, signup_role),
+                        )
                         conn.commit()
                         st.session_state.force_login_view = True
-                        st.session_state.signup_success = "Account created successfully. Please login with Premium."
+                        st.session_state.signup_success = (
+                            "Account created successfully. "
+                            + ("You are set as Admin for your company domain. " if signup_role == "admin" else "")
+                            + "Please login with Premium."
+                        )
                         st.rerun()
                     except sqlite3.IntegrityError:
                         st.error("Email already registered")
@@ -1881,7 +2002,11 @@ with colA:
     st.title("Customer Retention & Growth Engine")
 
 with colB:
-    st.write(f"👤 {st.session_state.user_name}")
+    if st.session_state.user_type == "demo":
+        role_label = "Demo"
+    else:
+        role_label = "Admin" if st.session_state.get("user_role") == "admin" else "CSM"
+    st.write(f"👤 {st.session_state.user_name} ({role_label})")
     if st.session_state.user_type == "premium" and st.session_state.user_email:
         with st.popover("Account"):
             profile = get_user_profile(st.session_state.user_email)
@@ -2014,6 +2139,65 @@ else:
         st.stop()
 
 df = enrich_contract_fields(df)
+df = apply_assignment_overlay(df)
+
+if st.session_state.user_type == "premium" and st.session_state.get("user_role") == "admin":
+    with st.expander("Admin Controls - Assign Customers to CSM", expanded=False):
+        team_rows = get_same_domain_users(st.session_state.user_email, include_admin=True)
+        if len(team_rows) == 0:
+            st.info("No team members found in your domain yet.")
+        else:
+            assignment_customer = st.selectbox(
+                "Select Customer",
+                sorted(df["customer_name"].astype(str).tolist()),
+                key="admin_assign_customer",
+            )
+            member_labels = {
+                f"{name} ({email}) - {role.upper()}": email
+                for name, email, role in team_rows
+            }
+            selected_member_label = st.selectbox(
+                "Assign To",
+                list(member_labels.keys()),
+                key="admin_assign_member",
+            )
+            if st.button("Assign Customer", key="admin_assign_btn"):
+                assignee_email = member_labels[selected_member_label]
+                upsert_customer_assignment(
+                    customer_name=str(assignment_customer),
+                    assigned_email=assignee_email,
+                    assigned_by=st.session_state.user_email,
+                )
+                st.success(f"{assignment_customer} assigned to {selected_member_label}.")
+                st.rerun()
+
+        assign_map = get_assignment_map()
+        if len(assign_map) > 0:
+            assigned_rows = []
+            name_rows = c.execute("SELECT email, name, role FROM users").fetchall()
+            meta = {str(r[0]).lower(): {"name": str(r[1]), "role": str(r[2])} for r in name_rows}
+            for cust in sorted(df["customer_name"].astype(str).tolist()):
+                email = assign_map.get(cust, "")
+                if email:
+                    info = meta.get(email, {"name": "Unknown", "role": "csm"})
+                    assigned_rows.append(
+                        {
+                            "Customer": cust,
+                            "Assigned To": f"{info['name']} ({email})",
+                            "Role": str(info["role"]).upper(),
+                        }
+                    )
+            if assigned_rows:
+                st.caption("Current assignments in this uploaded dataset")
+                st.dataframe(pd.DataFrame(assigned_rows), use_container_width=True, hide_index=True)
+        else:
+            st.caption("No assignments yet. Assign customers to control CSM visibility.")
+
+if st.session_state.user_type == "premium" and st.session_state.get("user_role") != "admin":
+    df = filter_visible_accounts(df, st.session_state.user_email, st.session_state.get("user_role", "csm"))
+    if len(df) == 0:
+        st.warning("No customers assigned to your account yet. Please contact your CSM Lead (Admin).")
+        st.stop()
 
 # =============================
 # HEALTH
@@ -2051,19 +2235,27 @@ if st.session_state.user_type == "premium":
 st.subheader("Customer Overview")
 
 if st.session_state.user_type == "premium":
+    is_admin = st.session_state.get("user_role") == "admin"
     csm_options = ["All CSM"] + sorted(df["owner"].dropna().unique().tolist())
     segment_options = ["All Segments"] + sorted(df["segment"].dropna().astype(str).unique().tolist())
     region_options = ["All Regions"] + sorted(df["region"].dropna().astype(str).unique().tolist())
     plan_options = ["All Plans"] + sorted(df["plan_type"].dropna().astype(str).unique().tolist())
 
-    f1, f2, f3, f4 = st.columns(4)
-    selected_csm = f1.selectbox("Select CSM", csm_options, key="premium_csm_select")
-    selected_segment = f2.selectbox("Select Segment", segment_options, key="premium_segment_select")
-    selected_region = f3.selectbox("Select Region", region_options, key="premium_region_select")
-    selected_plan = f4.selectbox("Select Plan", plan_options, key="premium_plan_select")
+    if is_admin:
+        f1, f2, f3, f4 = st.columns(4)
+        selected_csm = f1.selectbox("Select CSM", csm_options, key="premium_csm_select")
+        selected_segment = f2.selectbox("Select Segment", segment_options, key="premium_segment_select")
+        selected_region = f3.selectbox("Select Region", region_options, key="premium_region_select")
+        selected_plan = f4.selectbox("Select Plan", plan_options, key="premium_plan_select")
+    else:
+        f1, f2, f3 = st.columns(3)
+        selected_csm = st.session_state.user_name or "My Accounts"
+        selected_segment = f1.selectbox("Select Segment", segment_options, key="premium_segment_select")
+        selected_region = f2.selectbox("Select Region", region_options, key="premium_region_select")
+        selected_plan = f3.selectbox("Select Plan", plan_options, key="premium_plan_select")
 
     scoped_df = df.copy()
-    if selected_csm != "All CSM":
+    if is_admin and selected_csm != "All CSM":
         scoped_df = scoped_df[scoped_df["owner"] == selected_csm]
     if selected_segment != "All Segments":
         scoped_df = scoped_df[scoped_df["segment"] == selected_segment]
