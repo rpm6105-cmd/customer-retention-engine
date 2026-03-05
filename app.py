@@ -306,6 +306,81 @@ div[data-testid="stFileUploaderFileData"] {
     margin-bottom: 8px;
 }
 
+.kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 6px;
+    margin-bottom: 8px;
+}
+
+.kpi-grid.kpi-grid-5 {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.kpi-grid.kpi-grid-4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.kpi-card {
+    border: 1px solid #d8e8fb;
+    border-radius: 12px;
+    background: linear-gradient(180deg, #ffffff 0%, #f3f9ff 100%);
+    padding: 12px 14px;
+}
+
+.kpi-card-label {
+    color: #35506b !important;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.kpi-card-value {
+    color: #0f172a !important;
+    font-size: 36px;
+    font-weight: 800;
+    line-height: 1.05;
+    margin-top: 4px;
+}
+
+.priority-table-wrap {
+    margin-top: 8px;
+    border: 1px solid #bfd8f3;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #ffffff;
+}
+
+.priority-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.priority-table th, .priority-table td {
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 1px solid #e4edf8;
+    color: #1f2937;
+    vertical-align: middle;
+}
+
+.priority-table th {
+    background: #eef6ff;
+    color: #1d4c7c;
+    font-weight: 800;
+}
+
+.days-overdue {
+    color: #b42318;
+    font-weight: 700;
+}
+
+.days-upcoming {
+    color: #166534;
+    font-weight: 700;
+}
+
 .premium-kpi-label {
     color: #35506b;
     font-size: 12px;
@@ -1676,13 +1751,24 @@ def build_data_quality_summary(df_input: pd.DataFrame, source_name: str) -> dict
 def render_data_quality_panel(summary: dict):
     st.subheader("Data Quality Check")
     st.caption(f"Latest upload: {summary['source_name']}")
-    q1, q2, q3, q4, q5, q6 = st.columns(6)
-    q1.metric("Rows", f"{summary['total_rows']:,}")
-    q2.metric("Columns", f"{summary['total_columns']}")
-    q3.metric("Missing Cells", f"{summary['missing_cells']:,}")
-    q4.metric("Duplicate Accounts", f"{summary['duplicate_customers']:,}")
-    q5.metric("Invalid Renewal Dates", f"{summary['invalid_renewal_dates']:,}")
-    q6.metric("Quality Score", f"{summary['quality_score']}/100")
+    cards = [
+        ("Rows", f"{summary['total_rows']:,}"),
+        ("Columns", f"{summary['total_columns']}"),
+        ("Missing Cells", f"{summary['missing_cells']:,}"),
+        ("Duplicate Accounts", f"{summary['duplicate_customers']:,}"),
+        ("Invalid Renewal Dates", f"{summary['invalid_renewal_dates']:,}"),
+        ("Quality Score", f"{summary['quality_score']}/100"),
+    ]
+    html = "<div class='kpi-grid'>"
+    for label, value in cards:
+        html += (
+            "<div class='kpi-card'>"
+            f"<div class='kpi-card-label'>{escape(label)}</div>"
+            f"<div class='kpi-card-value'>{escape(str(value))}</div>"
+            "</div>"
+        )
+    html += "</div>"
+    st.markdown(html, unsafe_allow_html=True)
     st.markdown("---")
 
 
@@ -1742,13 +1828,78 @@ def render_renewal_risk_widgets(df_input: pd.DataFrame):
     next_90 = int(((days_out >= 0) & (days_out <= 90)).sum())
 
     st.subheader("Renewal & Risk Watch")
-    r1, r2, r3, r4, r5 = st.columns(5)
-    r1.metric("High Risk Accounts", f"{high_risk_count}")
-    r2.metric("Revenue At Risk", f"{high_risk_revenue:,.0f}")
-    r3.metric("Renewals in 30 Days", f"{next_30}")
-    r4.metric("Renewals in 60 Days", f"{next_60}")
-    r5.metric("Renewals in 90 Days", f"{next_90}")
+    cards = [
+        ("High Risk Accounts", f"{high_risk_count}"),
+        ("Revenue At Risk", f"{high_risk_revenue:,.0f}"),
+        ("Renewals in 30 Days", f"{next_30}"),
+        ("Renewals in 60 Days", f"{next_60}"),
+        ("Renewals in 90 Days", f"{next_90}"),
+    ]
+    html = "<div class='kpi-grid kpi-grid-5'>"
+    for label, value in cards:
+        html += (
+            "<div class='kpi-card'>"
+            f"<div class='kpi-card-label'>{escape(label)}</div>"
+            f"<div class='kpi-card-value'>{escape(str(value))}</div>"
+            "</div>"
+        )
+    html += "</div>"
+    st.markdown(html, unsafe_allow_html=True)
     st.markdown("---")
+
+
+def render_priority_accounts_table(df_input: pd.DataFrame):
+    rows = []
+    for _, row in df_input.iterrows():
+        risk = str(row["Risk"])
+        if risk == "High Risk":
+            badge_class = "risk-badge risk-high"
+        elif risk == "Medium Risk":
+            badge_class = "risk-badge risk-medium"
+        else:
+            badge_class = "risk-badge risk-low"
+
+        days = int(row["Days To Renewal"])
+        if days < 0:
+            days_text = f"<span class='days-overdue'>Overdue by {abs(days)}d</span>"
+        else:
+            days_text = f"<span class='days-upcoming'>{days}d left</span>"
+
+        rows.append(
+            "<tr>"
+            f"<td>{escape(str(row['Customer']))}</td>"
+            f"<td>{escape(str(row['CSM Owner']))}</td>"
+            f"<td><span class='{badge_class}'>{escape(risk)}</span></td>"
+            f"<td>{float(row['Plan Value']):,.0f}</td>"
+            f"<td>{escape(str(row['Renewal Date']))}</td>"
+            f"<td>{days_text}</td>"
+            f"<td>{escape(str(row['Act Before']))}</td>"
+            f"<td>{escape(str(row['Recommended Action']))}</td>"
+            f"<td>{float(row['Urgency Score']):.1f}</td>"
+            "</tr>"
+        )
+
+    header = (
+        "<thead><tr>"
+        "<th>Customer</th>"
+        "<th>CSM Owner</th>"
+        "<th>Risk</th>"
+        "<th>Plan Value</th>"
+        "<th>Renewal Date</th>"
+        "<th>Time To Renewal</th>"
+        "<th>Act Before</th>"
+        "<th>Recommended Action</th>"
+        "<th>Urgency Score</th>"
+        "</tr></thead>"
+    )
+    body = "<tbody>" + "".join(rows) + "</tbody>"
+    st.markdown(
+        "<div class='priority-table-wrap'><table class='priority-table'>"
+        + header
+        + body
+        + "</table></div>",
+        unsafe_allow_html=True,
+    )
 
 
 def build_portfolio_report(
@@ -2142,7 +2293,7 @@ df = enrich_contract_fields(df)
 df = apply_assignment_overlay(df)
 
 if st.session_state.user_type == "premium" and st.session_state.get("user_role") == "admin":
-    with st.expander("Admin Controls - Assign Customers to CSM", expanded=False):
+    with st.expander("Admin Access - Assign Customers to CSM", expanded=True):
         team_rows = get_same_domain_users(st.session_state.user_email, include_admin=True)
         if len(team_rows) == 0:
             st.info("No team members found in your domain yet.")
@@ -2194,6 +2345,7 @@ if st.session_state.user_type == "premium" and st.session_state.get("user_role")
             st.caption("No assignments yet. Assign customers to control CSM visibility.")
 
 if st.session_state.user_type == "premium" and st.session_state.get("user_role") != "admin":
+    st.info("Admin access is available only for CSM Lead accounts. Assigned customers are shown for your login.")
     df = filter_visible_accounts(df, st.session_state.user_email, st.session_state.get("user_role", "csm"))
     if len(df) == 0:
         st.warning("No customers assigned to your account yet. Please contact your CSM Lead (Admin).")
@@ -2286,11 +2438,22 @@ if st.session_state.user_type == "premium":
     portfolio_high = int((scoped_df["risk_level"] == "High Risk").sum()) if portfolio_total else 0
     portfolio_medium = int((scoped_df["risk_level"] == "Medium Risk").sum()) if portfolio_total else 0
     portfolio_revenue_at_risk = float(scoped_df[scoped_df["risk_level"] == "High Risk"]["plan_value"].sum()) if portfolio_total else 0
-    p1, p2, p3, p4 = st.columns(4)
-    p1.metric("Accounts in Scope", f"{portfolio_total}")
-    p2.metric("High Risk", f"{portfolio_high}")
-    p3.metric("Medium Risk", f"{portfolio_medium}")
-    p4.metric("Revenue At Risk", f"{portfolio_revenue_at_risk:,.0f}")
+    snapshot_cards = [
+        ("Accounts in Scope", f"{portfolio_total}"),
+        ("High Risk", f"{portfolio_high}"),
+        ("Medium Risk", f"{portfolio_medium}"),
+        ("Revenue At Risk", f"{portfolio_revenue_at_risk:,.0f}"),
+    ]
+    snapshot_html = "<div class='kpi-grid kpi-grid-4'>"
+    for label, value in snapshot_cards:
+        snapshot_html += (
+            "<div class='kpi-card'>"
+            f"<div class='kpi-card-label'>{escape(label)}</div>"
+            f"<div class='kpi-card-value'>{escape(str(value))}</div>"
+            "</div>"
+        )
+    snapshot_html += "</div>"
+    st.markdown(snapshot_html, unsafe_allow_html=True)
 
     owner_rollup = (
         scoped_df.groupby("owner", as_index=False)
@@ -2323,7 +2486,7 @@ if st.session_state.user_type == "premium":
     render_renewal_risk_widgets(scoped_df)
     st.subheader("Priority Accounts This Week")
     top_action_df = build_action_table(scoped_df, limit=10)
-    st.dataframe(top_action_df, use_container_width=True, hide_index=True)
+    render_priority_accounts_table(top_action_df)
     st.download_button(
         "Download Top 10 Action List",
         data=top_action_df.to_csv(index=False).encode("utf-8"),
