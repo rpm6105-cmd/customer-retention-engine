@@ -1460,10 +1460,10 @@ def build_simple_pdf_from_text(text: str) -> bytes:
     pdf = "%PDF-1.4\n"
     offsets = [0]
     for i, obj in enumerate(objects, start=1):
-        offsets.append(len(pdf.encode("latin-1")))
+        offsets.append(len(pdf.encode("latin-1", errors="replace")))
         pdf += f"{i} 0 obj\n{obj}\nendobj\n"
 
-    xref_start = len(pdf.encode("latin-1"))
+    xref_start = len(pdf.encode("latin-1", errors="replace"))
     pdf += f"xref\n0 {len(objects)+1}\n"
     pdf += "0000000000 65535 f \n"
     for off in offsets[1:]:
@@ -2083,7 +2083,7 @@ def build_portfolio_report(
         for val, w in zip(values, widths):
             txt = str(val)
             if len(txt) > w:
-                txt = txt[: w - 1] + "…"
+                txt = txt[: w - 3] + "..."
             out.append(txt.ljust(w))
         return " | ".join(out)
 
