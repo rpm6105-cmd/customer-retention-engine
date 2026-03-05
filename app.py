@@ -386,6 +386,31 @@ div[data-testid="stFileUploaderFileData"] {
     margin-top: 4px;
 }
 
+.data-source-badge {
+    display: inline-block;
+    margin-top: 4px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: linear-gradient(180deg, #eef6ff 0%, #e6f2ff 100%);
+    border: 1px solid #c9def7;
+    color: #1d4c7c;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.2px;
+}
+
+.meta-card {
+    margin-top: 8px;
+    margin-bottom: 10px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid #cfe0f5;
+    background: linear-gradient(180deg, #f8fcff 0%, #f1f8ff 100%);
+    color: #1f2937;
+    font-size: 13px;
+    font-weight: 600;
+}
+
 .priority-table-wrap {
     margin-top: 8px;
     border: 1px solid #bfd8f3;
@@ -1004,6 +1029,19 @@ def load_master_dataset_from_db():
         return None, None, str(err)
 
 
+def get_master_dataset_meta():
+    row = c.execute(
+        "SELECT source_name, updated_by, updated_at FROM master_dataset WHERE id = 1"
+    ).fetchone()
+    if not row:
+        return None
+    return {
+        "source_name": row[0] or "master.csv",
+        "updated_by": row[1] or "system",
+        "updated_at": row[2] or "unknown",
+    }
+
+
 def load_master_dataset_for_admin():
     db_df, db_source, db_error = load_master_dataset_from_db()
     if db_df is not None:
@@ -1028,6 +1066,56 @@ def load_master_dataset_for_admin():
             except Exception as err:
                 return None, None, str(err)
     return None, None, None
+
+
+def build_weekly_focus_report(df_input: pd.DataFrame, top_action_df: pd.DataFrame) -> str:
+    total_accounts = int(len(df_input))
+    high_risk = int((df_input["risk_level"] == "High Risk").sum()) if total_accounts else 0
+    medium_risk = int((df_input["risk_level"] == "Medium Risk").sum()) if total_accounts else 0
+    revenue_at_risk = float(df_input[df_input["risk_level"] == "High Risk"]["plan_value"].sum()) if total_accounts else 0.0
+
+    owner_top = (
+        df_input.groupby("owner", as_index=False)
+        .agg(
+            accounts=("customer_name", "count"),
+            high_risk=("risk_level", lambda s: int((s == "High Risk").sum())),
+        )
+        .sort_values(["high_risk", "accounts"], ascending=[False, False])
+        .head(5)
+    )
+
+    buffer = StringIO()
+    buffer.write("WEEKLY CSM FOCUS REPORT\n")
+    buffer.write("=======================\n\n")
+    buffer.write("PORTFOLIO SUMMARY\n")
+    buffer.write("-----------------\n")
+    buffer.write(f"Total Accounts      : {total_accounts}\n")
+    buffer.write(f"High Risk Accounts  : {high_risk}\n")
+    buffer.write(f"Medium Risk Accounts: {medium_risk}\n")
+    buffer.write(f"Revenue At Risk     : {revenue_at_risk:,.0f}\n\n")
+
+    buffer.write("TOP OWNER FOCUS\n")
+    buffer.write("---------------\n")
+    if len(owner_top) == 0:
+        buffer.write("No owner data available.\n\n")
+    else:
+        for _, row in owner_top.iterrows():
+            buffer.write(
+                f"- {row['owner']}: {int(row['high_risk'])} high-risk out of {int(row['accounts'])} accounts\n"
+            )
+        buffer.write("\n")
+
+    buffer.write("PRIORITY ACCOUNT ACTIONS (TOP 10)\n")
+    buffer.write("---------------------------------\n")
+    if len(top_action_df) == 0:
+        buffer.write("No priority accounts identified.\n")
+    else:
+        for _, row in top_action_df.head(10).iterrows():
+            buffer.write(
+                f"- {row['Customer']} | Owner: {row['CSM Owner']} | Risk: {row['Risk']} | "
+                f"Act Before: {row['Act Before']} | Action: {row['Recommended Action']}\n"
+            )
+    return buffer.getvalue()
 
 
 def prepare_multisource_customer_df(
@@ -2408,6 +2496,13 @@ colA, colB = st.columns([7, 3])
 
 with colA:
     st.title("Customer Retention & Growth Engine")
+    if st.session_state.user_type == "premium":
+        master_meta = get_master_dataset_meta()
+        if master_meta:
+            st.markdown(
+                f"<span class='data-source-badge'>Data Source: Company Master ({escape(str(master_meta['source_name']))})</span>",
+                unsafe_allow_html=True,
+            )
 
 with colB:
     if st.session_state.user_type == "demo":
@@ -2565,6 +2660,20 @@ else:
 
 df = enrich_contract_fields(df)
 df = apply_assignment_overlay(df)
+
+if st.session_state.user_type == "premium":
+    master_meta = get_master_dataset_meta()
+    if master_meta:
+        st.markdown(
+            f"""
+            <div class="meta-card">
+              Master Dataset: <b>{escape(str(master_meta['source_name']))}</b><br/>
+              Last Updated By: <b>{escape(str(master_meta['updated_by']))}</b><br/>
+              Last Updated At: <b>{escape(str(master_meta['updated_at']))}</b>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
 if st.session_state.user_type == "premium" and st.session_state.get("user_role") == "admin":
     with st.expander("Admin Access - Assign Customers to CSM", expanded=True):
@@ -2767,6 +2876,13 @@ if st.session_state.user_type == "premium":
         data=top_action_df.to_csv(index=False).encode("utf-8"),
         file_name="top_10_accounts_needing_action.csv",
         mime="text/csv",
+    )
+    weekly_focus_report = build_weekly_focus_report(scoped_df, top_action_df)
+    st.download_button(
+        "Download Weekly CSM Focus Report (PDF)",
+        data=build_simple_pdf_from_text(weekly_focus_report),
+        file_name="weekly_csm_focus_report.pdf",
+        mime="application/pdf",
     )
     portfolio_report = build_portfolio_report(
         scoped_df,
