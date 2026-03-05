@@ -1526,6 +1526,106 @@ def get_previous_snapshot_df():
         return None
 
 
+def build_data_quality_summary(df_input: pd.DataFrame, source_name: str) -> dict:
+    total_rows = int(len(df_input))
+    total_columns = int(len(df_input.columns))
+    missing_cells = int(df_input.isna().sum().sum())
+    duplicate_customers = 0
+    if "customer_name" in df_input.columns:
+        duplicate_customers = int(df_input["customer_name"].astype(str).str.strip().duplicated().sum())
+    invalid_renewal_dates = 0
+    if "renewal_date" in df_input.columns:
+        parsed = pd.to_datetime(df_input["renewal_date"], errors="coerce")
+        invalid_renewal_dates = int(parsed.isna().sum())
+    return {
+        "source_name": source_name,
+        "total_rows": total_rows,
+        "total_columns": total_columns,
+        "missing_cells": missing_cells,
+        "duplicate_customers": duplicate_customers,
+        "invalid_renewal_dates": invalid_renewal_dates,
+        "quality_score": max(0, 100 - (missing_cells // 5) - (duplicate_customers * 5) - (invalid_renewal_dates * 3)),
+    }
+
+
+def render_data_quality_panel(summary: dict):
+    st.subheader("Data Quality Check")
+    st.caption(f"Latest upload: {summary['source_name']}")
+    q1, q2, q3, q4, q5, q6 = st.columns(6)
+    q1.metric("Rows", f"{summary['total_rows']:,}")
+    q2.metric("Columns", f"{summary['total_columns']}")
+    q3.metric("Missing Cells", f"{summary['missing_cells']:,}")
+    q4.metric("Duplicate Accounts", f"{summary['duplicate_customers']:,}")
+    q5.metric("Invalid Renewal Dates", f"{summary['invalid_renewal_dates']:,}")
+    q6.metric("Quality Score", f"{summary['quality_score']}/100")
+    st.markdown("---")
+
+
+def build_action_table(df_input: pd.DataFrame) -> pd.DataFrame:
+    work = df_input.copy()
+    work["renewal_dt"] = pd.to_datetime(work["renewal_date"], errors="coerce")
+    today = pd.Timestamp(date.today())
+    work["days_to_renewal"] = (work["renewal_dt"] - today).dt.days
+    work["days_to_renewal"] = work["days_to_renewal"].fillna(9999).astype(int)
+    work["risk_weight"] = work["risk_level"].map({"High Risk": 3, "Medium Risk": 2, "Low Risk": 1}).fillna(1)
+    work["urgency_score"] = (
+        work["priority_score"].astype(float)
+        + (work["risk_weight"] * 20)
+        + (120 - work["days_to_renewal"].clip(lower=0, upper=120))
+    )
+    top = work.sort_values("urgency_score", ascending=False).head(10).copy()
+    top["Act Before"] = top["renewal_dt"].apply(
+        lambda d: (d - pd.Timedelta(days=30)).strftime("%Y-%m-%d") if pd.notna(d) else "-"
+    )
+    top["Recommended Action"] = top.apply(
+        lambda r: recommend_options_for_row(r)[0]["strategy"] if pd.notna(r.get("renewal_dt")) else "Enablement Plan",
+        axis=1,
+    )
+    return top[
+        [
+            "customer_name",
+            "owner",
+            "risk_level",
+            "plan_value",
+            "renewal_date",
+            "days_to_renewal",
+            "Act Before",
+            "Recommended Action",
+            "urgency_score",
+        ]
+    ].rename(
+        columns={
+            "customer_name": "Customer",
+            "owner": "CSM Owner",
+            "risk_level": "Risk",
+            "plan_value": "Plan Value",
+            "renewal_date": "Renewal Date",
+            "days_to_renewal": "Days To Renewal",
+            "urgency_score": "Urgency Score",
+        }
+    )
+
+
+def render_renewal_risk_widgets(df_input: pd.DataFrame):
+    today = date.today()
+    renewal_dates = pd.to_datetime(df_input["renewal_date"], errors="coerce")
+    days_out = (renewal_dates.dt.date - today).apply(lambda d: d.days if pd.notna(d) else None)
+    high_risk_count = int((df_input["risk_level"] == "High Risk").sum())
+    high_risk_revenue = float(df_input[df_input["risk_level"] == "High Risk"]["plan_value"].sum())
+    next_30 = int(((days_out >= 0) & (days_out <= 30)).sum())
+    next_60 = int(((days_out >= 0) & (days_out <= 60)).sum())
+    next_90 = int(((days_out >= 0) & (days_out <= 90)).sum())
+
+    st.subheader("Renewal & Risk Watch")
+    r1, r2, r3, r4, r5 = st.columns(5)
+    r1.metric("High Risk Accounts", f"{high_risk_count}")
+    r2.metric("Revenue At Risk", f"{high_risk_revenue:,.0f}")
+    r3.metric("Renewals in 30 Days", f"{next_30}")
+    r4.metric("Renewals in 60 Days", f"{next_60}")
+    r5.metric("Renewals in 90 Days", f"{next_90}")
+    st.markdown("---")
+
+
 def update_snapshot_state(df_input: pd.DataFrame):
     required_cols = ["customer_name", "health_score", "risk_level", "priority_score", "plan_value"]
     snapshot_df = df_input[required_cols].copy()
@@ -1794,6 +1894,7 @@ else:
             show_csv_error_popup(error_msg)
             st.stop()
 
+        st.session_state["last_upload_quality"] = build_data_quality_summary(df, up_full.name)
         st.success(
             f"Integrated dataset ready: {len(df)} customers loaded from one CSV."
         )
@@ -1828,6 +1929,8 @@ df["risk_level"] = df["health_score"].apply(risk_flag)
 df["priority_score"] = (100 - df["health_score"]) + (df["plan_value"] / 100)
 
 if st.session_state.user_type == "premium":
+    if st.session_state.get("last_upload_quality"):
+        render_data_quality_panel(st.session_state["last_upload_quality"])
     update_snapshot_state(df)
 
 # =============================
@@ -1851,6 +1954,19 @@ summary_key = f"{selected_csm}:{selected_customer}" if st.session_state.user_typ
 if st.session_state.get("ai_summary_for_customer") != summary_key:
     st.session_state["ai_summary_text"] = None
     st.session_state["ai_summary_for_customer"] = summary_key
+
+if st.session_state.user_type == "premium":
+    render_renewal_risk_widgets(scoped_df)
+    st.subheader("Top 10 Accounts Needing Action")
+    top_action_df = build_action_table(scoped_df)
+    st.dataframe(top_action_df, use_container_width=True, hide_index=True)
+    st.download_button(
+        "Download Top 10 Action List",
+        data=top_action_df.to_csv(index=False).encode("utf-8"),
+        file_name="top_10_accounts_needing_action.csv",
+        mime="text/csv",
+    )
+    st.markdown("---")
 
 # Premium view should focus selected customer only.
 if st.session_state.user_type == "premium":
