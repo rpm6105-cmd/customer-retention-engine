@@ -2475,39 +2475,32 @@ if st.session_state.user_type == "demo":
         "plan_value": [1500, 900, 2000, 800, 3000]
     })
 else:
-    up_full = st.file_uploader(
-        "Upload",
-        type=["csv"],
-        key="up_full_dataset",
-    )
-    is_admin_user = st.session_state.get("user_role") == "admin"
-
-    if up_full:
-        full_df = pd.read_csv(up_full)
-        df, error_msg = prepare_integrated_customer_df(full_df)
-        if error_msg:
-            show_csv_error_popup(error_msg)
-            st.stop()
-
-        st.session_state["last_upload_quality"] = build_data_quality_summary(df, up_full.name)
-        st.success(
-            f"Integrated dataset ready: {len(df)} customers loaded from one CSV."
-        )
+    master_df, master_path, master_error = load_master_dataset_for_admin()
+    if master_df is not None:
+        df = master_df
+        st.session_state["last_upload_quality"] = build_data_quality_summary(df, Path(master_path).name)
+        st.success(f"Master dataset loaded: {master_path}")
     else:
-        if is_admin_user:
-            master_df, master_path, master_error = load_master_dataset_for_admin()
-            if master_df is not None:
-                df = master_df
-                st.session_state["last_upload_quality"] = build_data_quality_summary(df, Path(master_path).name)
-                st.success(f"Master dataset loaded for CSM Lead from: {master_path}")
-                st.info("You can still upload another CSV above to override this master view for this session.")
-            else:
-                if master_error:
-                    st.warning(f"Master dataset could not be loaded: {master_error}")
-                st.info("Upload the integrated CSV file to continue.")
+        if master_error:
+            st.warning(f"Master dataset could not be loaded: {master_error}")
+        st.info("Master CSV not found. Upload the integrated CSV file to continue.")
+        up_full = st.file_uploader(
+            "Upload",
+            type=["csv"],
+            key="up_full_dataset",
+        )
+        if up_full:
+            full_df = pd.read_csv(up_full)
+            df, error_msg = prepare_integrated_customer_df(full_df)
+            if error_msg:
+                show_csv_error_popup(error_msg)
                 st.stop()
+
+            st.session_state["last_upload_quality"] = build_data_quality_summary(df, up_full.name)
+            st.success(
+                f"Integrated dataset ready: {len(df)} customers loaded from one CSV."
+            )
         else:
-            st.info("Upload the integrated CSV file to continue.")
             st.stop()
 
 df = enrich_contract_fields(df)
