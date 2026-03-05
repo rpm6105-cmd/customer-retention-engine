@@ -9,6 +9,7 @@ from datetime import datetime, date, timedelta
 from io import StringIO
 import textwrap
 import urllib.parse
+from pathlib import Path
 
 st.set_page_config(page_title="Customer Retention & Growth Engine", layout="wide")
 
@@ -934,6 +935,24 @@ def build_csv_download_data_uri(headers: list[str]) -> str:
     return "data:text/csv;charset=utf-8," + urllib.parse.quote(csv_text)
 
 
+def load_master_dataset_for_admin():
+    candidates = [
+        Path(__file__).resolve().parent / "cx_retention_customers_full_dataset.csv",
+        Path.home() / "Downloads" / "cx_retention_customers_full_dataset.csv",
+    ]
+    for path in candidates:
+        if path.exists():
+            try:
+                full_df = pd.read_csv(path)
+                prepared, error_msg = prepare_integrated_customer_df(full_df)
+                if error_msg:
+                    continue
+                return prepared, str(path), None
+            except Exception as err:
+                return None, None, str(err)
+    return None, None, None
+
+
 def prepare_multisource_customer_df(
     customers_df: pd.DataFrame,
     feature_adoption_df: pd.DataFrame,
@@ -1327,32 +1346,40 @@ def update_user_password(email: str, new_password: str):
 
 
 def build_presentation_report(selected_row: pd.Series, options: list, ai_summary_text: str | None) -> str:
-    buffer = StringIO()
-    buffer.write("CX Retention Strategy Report\n")
-    buffer.write("===========================\n\n")
-    buffer.write(f"Account: {selected_row['customer_name']}\n")
-    buffer.write(f"Owner: {selected_row['owner']}\n")
-    buffer.write(f"Risk Level: {selected_row['risk_level']}\n")
-    buffer.write(f"Health Score: {float(selected_row['health_score']):.1f}\n")
-    buffer.write(f"Support Tickets (30d): {int(selected_row['support_tickets'])}\n")
-    buffer.write(f"Plan Value: {float(selected_row['plan_value']):.0f}\n")
-    buffer.write(f"Purchase Date: {selected_row['purchase_date']}\n")
-    buffer.write(f"Renewal Date: {selected_row['renewal_date']}\n")
-    buffer.write(f"Auto Renew Opt-Out: {'Yes' if bool(selected_row['auto_renew_opt_out']) else 'No'}\n\n")
+    def summary_points(text: str | None) -> list[str]:
+        if not text:
+            return ["Summary not generated yet. Use 'Generate AI Executive Summary' in the app."]
+        lines = [seg.strip() for seg in text.replace("\n", " ").split(".") if seg.strip()]
+        return lines[:4] if lines else [text.strip()]
 
-    buffer.write("Top 3 Recommended Strategies\n")
-    buffer.write("----------------------------\n")
+    buffer = StringIO()
+    buffer.write("CX ACCOUNT STRATEGY REPORT\n")
+    buffer.write("==========================\n\n")
+    buffer.write("ACCOUNT SNAPSHOT\n")
+    buffer.write("----------------\n")
+    buffer.write(f"Account Name         : {selected_row['customer_name']}\n")
+    buffer.write(f"CSM Owner            : {selected_row['owner']}\n")
+    buffer.write(f"Risk Level           : {selected_row['risk_level']}\n")
+    buffer.write(f"Health Score         : {float(selected_row['health_score']):.1f}\n")
+    buffer.write(f"Support Tickets (30d): {int(selected_row['support_tickets'])}\n")
+    buffer.write(f"Plan Value           : {float(selected_row['plan_value']):,.0f}\n")
+    buffer.write(f"Purchase Date        : {selected_row['purchase_date']}\n")
+    buffer.write(f"Renewal Date         : {selected_row['renewal_date']}\n")
+    buffer.write(f"Auto Renew Opt-Out   : {'Yes' if bool(selected_row['auto_renew_opt_out']) else 'No'}\n\n")
+
+    buffer.write("TOP 3 RECOMMENDED PLAYS\n")
+    buffer.write("-----------------------\n")
     for idx, opt in enumerate(options, start=1):
-        buffer.write(f"{idx}. {opt['strategy']} | Impact: {opt['impact_score']}/100 | Act Before: {opt['act_before']}\n")
-        buffer.write(f"   Play: {opt['play']}\n")
+        buffer.write(f"{idx}. {opt['strategy']}\n")
+        buffer.write(f"   Impact Score : {opt['impact_score']}/100\n")
+        buffer.write(f"   Act Before   : {opt['act_before']}\n")
+        buffer.write(f"   Play         : {opt['play']}\n")
     buffer.write("\n")
 
-    buffer.write("AI Executive Summary\n")
-    buffer.write("--------------------\n")
-    if ai_summary_text:
-        buffer.write(ai_summary_text + "\n")
-    else:
-        buffer.write("Not generated yet. Use 'Generate AI Executive Summary' in the app.\n")
+    buffer.write("AI EXECUTIVE SUMMARY (KEY POINTS)\n")
+    buffer.write("---------------------------------\n")
+    for point in summary_points(ai_summary_text):
+        buffer.write(f"- {point}\n")
 
     return buffer.getvalue()
 
@@ -1987,25 +2014,25 @@ def build_portfolio_report(
     )
 
     buffer = StringIO()
-    buffer.write("CX Portfolio MBR Report\n")
+    buffer.write("CX PORTFOLIO MBR REPORT\n")
     buffer.write("=======================\n\n")
-    buffer.write("Applied Filters\n")
-    buffer.write("---------------\n")
-    buffer.write(f"CSM: {selected_csm}\n")
-    buffer.write(f"Segment: {selected_segment}\n")
-    buffer.write(f"Region: {selected_region}\n")
-    buffer.write(f"Plan Type: {selected_plan}\n\n")
+    buffer.write("FILTER SUMMARY\n")
+    buffer.write("--------------\n")
+    buffer.write(f"CSM Filter     : {selected_csm}\n")
+    buffer.write(f"Segment Filter : {selected_segment}\n")
+    buffer.write(f"Region Filter  : {selected_region}\n")
+    buffer.write(f"Plan Filter    : {selected_plan}\n\n")
 
-    buffer.write("Portfolio Snapshot\n")
-    buffer.write("------------------\n")
-    buffer.write(f"Total Accounts: {total_accounts}\n")
-    buffer.write(f"High Risk Accounts: {high_risk_accounts}\n")
-    buffer.write(f"Revenue At Risk: {revenue_at_risk:,.0f}\n")
-    buffer.write(f"Average Health Score: {avg_health:.1f}\n")
-    buffer.write(f"Renewals in Next 60 Days: {renewals_60}\n\n")
+    buffer.write("PORTFOLIO KPI SNAPSHOT\n")
+    buffer.write("----------------------\n")
+    buffer.write(f"Total Accounts         : {total_accounts}\n")
+    buffer.write(f"High Risk Accounts     : {high_risk_accounts}\n")
+    buffer.write(f"Revenue At Risk        : {revenue_at_risk:,.0f}\n")
+    buffer.write(f"Average Health Score   : {avg_health:.1f}\n")
+    buffer.write(f"Renewals in 60 Days    : {renewals_60}\n\n")
 
-    buffer.write("CSM Rollup\n")
-    buffer.write("----------\n")
+    buffer.write("CSM PERFORMANCE ROLLUP\n")
+    buffer.write("----------------------\n")
     if len(owner_rollup) == 0:
         buffer.write("No owner-level rows in current filter scope.\n\n")
     else:
@@ -2016,7 +2043,7 @@ def build_portfolio_report(
             )
         buffer.write("\n")
 
-    buffer.write("Priority Accounts This Week\n")
+    buffer.write("PRIORITY ACCOUNTS THIS WEEK\n")
     buffer.write("---------------------------\n")
     if len(top_action_df) == 0:
         buffer.write("No priority accounts found in current scope.\n")
@@ -2329,6 +2356,7 @@ else:
         type=["csv"],
         key="up_full_dataset",
     )
+    is_admin_user = st.session_state.get("user_role") == "admin"
 
     if up_full:
         full_df = pd.read_csv(up_full)
@@ -2342,8 +2370,21 @@ else:
             f"Integrated dataset ready: {len(df)} customers loaded from one CSV."
         )
     else:
-        st.info("Upload the integrated CSV file to continue.")
-        st.stop()
+        if is_admin_user:
+            master_df, master_path, master_error = load_master_dataset_for_admin()
+            if master_df is not None:
+                df = master_df
+                st.session_state["last_upload_quality"] = build_data_quality_summary(df, Path(master_path).name)
+                st.success(f"Master dataset loaded for CSM Lead from: {master_path}")
+                st.info("You can still upload another CSV above to override this master view for this session.")
+            else:
+                if master_error:
+                    st.warning(f"Master dataset could not be loaded: {master_error}")
+                st.info("Upload the integrated CSV file to continue.")
+                st.stop()
+        else:
+            st.info("Upload the integrated CSV file to continue.")
+            st.stop()
 
 df = enrich_contract_fields(df)
 df = apply_assignment_overlay(df)
@@ -2354,10 +2395,10 @@ if st.session_state.user_type == "premium" and st.session_state.get("user_role")
         if len(team_rows) == 0:
             st.info("No team members found in your domain yet.")
         else:
-            assignment_customer = st.selectbox(
-                "Select Customer",
+            assignment_customers = st.multiselect(
+                "Select Customer(s)",
                 sorted(df["customer_name"].astype(str).tolist()),
-                key="admin_assign_customer",
+                key="admin_assign_customers",
             )
             member_labels = {
                 f"{name} ({email}) - {role.upper()}": email
@@ -2368,15 +2409,19 @@ if st.session_state.user_type == "premium" and st.session_state.get("user_role")
                 list(member_labels.keys()),
                 key="admin_assign_member",
             )
-            if st.button("Assign Customer", key="admin_assign_btn"):
-                assignee_email = member_labels[selected_member_label]
-                upsert_customer_assignment(
-                    customer_name=str(assignment_customer),
-                    assigned_email=assignee_email,
-                    assigned_by=st.session_state.user_email,
-                )
-                st.success(f"{assignment_customer} assigned to {selected_member_label}.")
-                st.rerun()
+            if st.button("Assign Selected Customers", key="admin_assign_btn"):
+                if not assignment_customers:
+                    st.warning("Select at least one customer to assign.")
+                else:
+                    assignee_email = member_labels[selected_member_label]
+                    for customer_name in assignment_customers:
+                        upsert_customer_assignment(
+                            customer_name=str(customer_name),
+                            assigned_email=assignee_email,
+                            assigned_by=st.session_state.user_email,
+                        )
+                    st.success(f"{len(assignment_customers)} customer(s) assigned to {selected_member_label}.")
+                    st.rerun()
 
         assign_map = get_assignment_map()
         if len(assign_map) > 0:
