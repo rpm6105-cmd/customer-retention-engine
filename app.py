@@ -798,6 +798,17 @@ def ensure_schema_migrations():
         )
         """
     )
+    c.execute(
+        """
+        CREATE TABLE IF NOT EXISTS master_dataset (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            source_name TEXT,
+            csv_text TEXT NOT NULL,
+            updated_by TEXT,
+            updated_at TEXT
+        )
+        """
+    )
     conn.commit()
 
 
@@ -962,7 +973,44 @@ def build_csv_download_data_uri(headers: list[str]) -> str:
     return "data:text/csv;charset=utf-8," + urllib.parse.quote(csv_text)
 
 
+def save_master_dataset(csv_text: str, source_name: str, updated_by: str):
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    c.execute(
+        """
+        INSERT INTO master_dataset (id, source_name, csv_text, updated_by, updated_at)
+        VALUES (1, ?, ?, ?, ?)
+        ON CONFLICT(id)
+        DO UPDATE SET source_name=excluded.source_name, csv_text=excluded.csv_text, updated_by=excluded.updated_by, updated_at=excluded.updated_at
+        """,
+        (source_name, csv_text, updated_by, now),
+    )
+    conn.commit()
+
+
+def load_master_dataset_from_db():
+    row = c.execute(
+        "SELECT source_name, csv_text, updated_by, updated_at FROM master_dataset WHERE id = 1"
+    ).fetchone()
+    if not row:
+        return None, None, None
+    source_name, csv_text, _updated_by, _updated_at = row
+    try:
+        full_df = pd.read_csv(StringIO(csv_text))
+        prepared, error_msg = prepare_integrated_customer_df(full_df)
+        if error_msg:
+            return None, None, error_msg
+        return prepared, f"DB Master ({source_name})", None
+    except Exception as err:
+        return None, None, str(err)
+
+
 def load_master_dataset_for_admin():
+    db_df, db_source, db_error = load_master_dataset_from_db()
+    if db_df is not None:
+        return db_df, db_source, None
+    if db_error:
+        return None, None, db_error
+
     candidates = [
         Path(__file__).resolve().parent / "cx_retention_customers_full_dataset.csv",
         Path.home() / "Downloads" / "cx_retention_customers_full_dataset.csv",
@@ -974,6 +1022,8 @@ def load_master_dataset_for_admin():
                 prepared, error_msg = prepare_integrated_customer_df(full_df)
                 if error_msg:
                     continue
+                # Seed DB master when local file is available.
+                save_master_dataset(full_df.to_csv(index=False), path.name, "system")
                 return prepared, str(path), None
             except Exception as err:
                 return None, None, str(err)
@@ -2483,24 +2533,34 @@ else:
     else:
         if master_error:
             st.warning(f"Master dataset could not be loaded: {master_error}")
-        st.info("Master CSV not found. Upload the integrated CSV file to continue.")
-        up_full = st.file_uploader(
-            "Upload",
-            type=["csv"],
-            key="up_full_dataset",
-        )
-        if up_full:
-            full_df = pd.read_csv(up_full)
-            df, error_msg = prepare_integrated_customer_df(full_df)
-            if error_msg:
-                show_csv_error_popup(error_msg)
-                st.stop()
-
-            st.session_state["last_upload_quality"] = build_data_quality_summary(df, up_full.name)
-            st.success(
-                f"Integrated dataset ready: {len(df)} customers loaded from one CSV."
+        is_admin_user = st.session_state.get("user_role") == "admin"
+        if is_admin_user:
+            st.info("No master dataset found. Upload once as CSM Lead to set company master data.")
+            up_full = st.file_uploader(
+                "Upload Master CSV (CSM Lead)",
+                type=["csv"],
+                key="up_full_dataset",
             )
+            if up_full:
+                full_df = pd.read_csv(up_full)
+                df, error_msg = prepare_integrated_customer_df(full_df)
+                if error_msg:
+                    show_csv_error_popup(error_msg)
+                    st.stop()
+
+                save_master_dataset(
+                    csv_text=full_df.to_csv(index=False),
+                    source_name=up_full.name,
+                    updated_by=st.session_state.user_email or "admin",
+                )
+                st.session_state["last_upload_quality"] = build_data_quality_summary(df, up_full.name)
+                st.success(
+                    f"Master dataset saved and loaded: {len(df)} customers."
+                )
+            else:
+                st.stop()
         else:
+            st.warning("Master CSV not found yet. Ask your CSM Lead (Admin) to upload the company master dataset.")
             st.stop()
 
 df = enrich_contract_fields(df)
