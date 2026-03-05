@@ -394,6 +394,33 @@ div[data-testid="stFileUploaderFileData"] {
     background: #ffffff;
 }
 
+.light-table-wrap {
+    margin-top: 8px;
+    border: 1px solid #bfd8f3;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #ffffff;
+}
+
+.light-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.light-table th, .light-table td {
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 1px solid #e4edf8;
+    color: #1f2937;
+    vertical-align: middle;
+}
+
+.light-table th {
+    background: #eef6ff;
+    color: #1d4c7c;
+    font-weight: 800;
+}
+
 .priority-table {
     width: 100%;
     border-collapse: collapse;
@@ -1985,6 +2012,64 @@ def render_priority_accounts_table(df_input: pd.DataFrame):
     )
 
 
+def render_owner_rollup_table(df_input: pd.DataFrame):
+    rows = []
+    for _, row in df_input.iterrows():
+        rows.append(
+            "<tr>"
+            f"<td>{escape(str(row['CSM Owner']))}</td>"
+            f"<td>{int(row['Accounts'])}</td>"
+            f"<td>{int(row['High Risk'])}</td>"
+            f"<td>{float(row['Avg Health']):.1f}</td>"
+            f"<td>{float(row['Total ACV']):,.0f}</td>"
+            "</tr>"
+        )
+    header = (
+        "<thead><tr>"
+        "<th>CSM Owner</th>"
+        "<th>Accounts</th>"
+        "<th>High Risk</th>"
+        "<th>Avg Health</th>"
+        "<th>Total ACV</th>"
+        "</tr></thead>"
+    )
+    body = "<tbody>" + "".join(rows) + "</tbody>"
+    st.markdown(
+        "<div class='light-table-wrap'><table class='light-table'>"
+        + header
+        + body
+        + "</table></div>",
+        unsafe_allow_html=True,
+    )
+
+
+def render_assignment_table(df_input: pd.DataFrame):
+    rows = []
+    for _, row in df_input.iterrows():
+        rows.append(
+            "<tr>"
+            f"<td>{escape(str(row['Customer']))}</td>"
+            f"<td>{escape(str(row['Assigned To']))}</td>"
+            f"<td>{escape(str(row['Role']))}</td>"
+            "</tr>"
+        )
+    header = (
+        "<thead><tr>"
+        "<th>Customer</th>"
+        "<th>Assigned To</th>"
+        "<th>Role</th>"
+        "</tr></thead>"
+    )
+    body = "<tbody>" + "".join(rows) + "</tbody>"
+    st.markdown(
+        "<div class='light-table-wrap'><table class='light-table'>"
+        + header
+        + body
+        + "</table></div>",
+        unsafe_allow_html=True,
+    )
+
+
 def build_portfolio_report(
     df_input: pd.DataFrame,
     top_action_df: pd.DataFrame,
@@ -1993,6 +2078,15 @@ def build_portfolio_report(
     selected_region: str,
     selected_plan: str,
 ) -> str:
+    def fixed_row(values, widths):
+        out = []
+        for val, w in zip(values, widths):
+            txt = str(val)
+            if len(txt) > w:
+                txt = txt[: w - 1] + "…"
+            out.append(txt.ljust(w))
+        return " | ".join(out)
+
     total_accounts = int(len(df_input))
     high_risk_accounts = int((df_input["risk_level"] == "High Risk").sum()) if total_accounts else 0
     revenue_at_risk = float(df_input[df_input["risk_level"] == "High Risk"]["plan_value"].sum()) if total_accounts else 0.0
@@ -2036,10 +2130,22 @@ def build_portfolio_report(
     if len(owner_rollup) == 0:
         buffer.write("No owner-level rows in current filter scope.\n\n")
     else:
+        widths = [16, 9, 9, 10, 14]
+        buffer.write(fixed_row(["Owner", "Accounts", "HighRisk", "AvgHealth", "TotalACV"], widths) + "\n")
+        buffer.write("-" * 68 + "\n")
         for _, row in owner_rollup.iterrows():
             buffer.write(
-                f"{row['owner']}: Accounts={int(row['accounts'])}, High Risk={int(row['high_risk'])}, "
-                f"Avg Health={float(row['avg_health']):.1f}, ACV={float(row['plan_value']):,.0f}\n"
+                fixed_row(
+                    [
+                        row["owner"],
+                        int(row["accounts"]),
+                        int(row["high_risk"]),
+                        f"{float(row['avg_health']):.1f}",
+                        f"{float(row['plan_value']):,.0f}",
+                    ],
+                    widths,
+                )
+                + "\n"
             )
         buffer.write("\n")
 
@@ -2048,11 +2154,29 @@ def build_portfolio_report(
     if len(top_action_df) == 0:
         buffer.write("No priority accounts found in current scope.\n")
     else:
+        widths = [18, 12, 9, 12, 12, 16]
+        buffer.write(
+            fixed_row(
+                ["Customer", "Owner", "Risk", "Renewal", "ActBefore", "Action"],
+                widths,
+            )
+            + "\n"
+        )
+        buffer.write("-" * 92 + "\n")
         for idx, row in top_action_df.head(10).iterrows():
             buffer.write(
-                f"{idx + 1}. {row['Customer']} | {row['Risk']} | Owner={row['CSM Owner']} | "
-                f"Renewal={row['Renewal Date']} | Act Before={row['Act Before']} | "
-                f"Action={row['Recommended Action']}\n"
+                fixed_row(
+                    [
+                        f"{idx + 1}. {row['Customer']}",
+                        row["CSM Owner"],
+                        row["Risk"],
+                        row["Renewal Date"],
+                        row["Act Before"],
+                        row["Recommended Action"],
+                    ],
+                    widths,
+                )
+                + "\n"
             )
     return buffer.getvalue()
 
@@ -2441,7 +2565,7 @@ if st.session_state.user_type == "premium" and st.session_state.get("user_role")
                     )
             if assigned_rows:
                 st.caption("Current assignments in this uploaded dataset")
-                st.dataframe(pd.DataFrame(assigned_rows), use_container_width=True, hide_index=True)
+                render_assignment_table(pd.DataFrame(assigned_rows))
         else:
             st.caption("No assignments yet. Assign customers to control CSM visibility.")
 
@@ -2569,19 +2693,16 @@ if st.session_state.user_type == "premium":
         else pd.DataFrame(columns=["owner", "accounts", "high_risk", "avg_health", "revenue"])
     )
     st.caption("Owner rollup for leadership visibility")
-    st.dataframe(
-        owner_rollup.rename(
-            columns={
-                "owner": "CSM Owner",
-                "accounts": "Accounts",
-                "high_risk": "High Risk",
-                "avg_health": "Avg Health",
-                "revenue": "Total ACV",
-            }
-        ),
-        use_container_width=True,
-        hide_index=True,
+    owner_rollup_view = owner_rollup.rename(
+        columns={
+            "owner": "CSM Owner",
+            "accounts": "Accounts",
+            "high_risk": "High Risk",
+            "avg_health": "Avg Health",
+            "revenue": "Total ACV",
+        }
     )
+    render_owner_rollup_table(owner_rollup_view)
     st.markdown("---")
 
     render_renewal_risk_widgets(scoped_df)
