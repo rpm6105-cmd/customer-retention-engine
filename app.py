@@ -381,6 +381,13 @@ div[data-testid="metric-container"] {
     box-shadow: 0 8px 18px rgba(20, 35, 58, 0.06);
 }
 
+/* Hard override so metric numbers never appear greyed out */
+div[data-testid="metric-container"] * {
+    color: #0f172a !important;
+    opacity: 1 !important;
+    -webkit-text-fill-color: #0f172a !important;
+}
+
 div[data-testid="metric-container"] [data-testid="stMetricLabel"] {
     color: #334155 !important;
     opacity: 1 !important;
@@ -420,6 +427,15 @@ div[data-testid="metric-container"] [data-testid="stMetricDelta"] * {
 
 div[data-testid="metric-container"] [data-testid="stMetricDelta"] {
     color: #0f4c5c !important;
+}
+
+div[data-testid="metric-container"] [data-testid="stMetricValue"] > div,
+div[data-testid="metric-container"] [data-testid="stMetricValue"] div,
+div[data-testid="metric-container"] [data-testid="stMetricValue"] p,
+div[data-testid="metric-container"] [data-testid="stMetricValue"] span {
+    color: #0f172a !important;
+    opacity: 1 !important;
+    -webkit-text-fill-color: #0f172a !important;
 }
 
 /* Tab and caption readability */
