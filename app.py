@@ -1597,7 +1597,7 @@ def render_data_quality_panel(summary: dict):
     st.markdown("---")
 
 
-def build_action_table(df_input: pd.DataFrame) -> pd.DataFrame:
+def build_action_table(df_input: pd.DataFrame, limit: int = 10) -> pd.DataFrame:
     work = df_input.copy()
     work["renewal_dt"] = pd.to_datetime(work["renewal_date"], errors="coerce")
     today = pd.Timestamp(date.today())
@@ -1609,7 +1609,7 @@ def build_action_table(df_input: pd.DataFrame) -> pd.DataFrame:
         + (work["risk_weight"] * 20)
         + (120 - work["days_to_renewal"].clip(lower=0, upper=120))
     )
-    top = work.sort_values("urgency_score", ascending=False).head(10).copy()
+    top = work.sort_values("urgency_score", ascending=False).head(limit).copy()
     top["Act Before"] = top["renewal_dt"].apply(
         lambda d: (d - pd.Timedelta(days=30)).strftime("%Y-%m-%d") if pd.notna(d) else "-"
     )
@@ -1660,6 +1660,78 @@ def render_renewal_risk_widgets(df_input: pd.DataFrame):
     r4.metric("Renewals in 60 Days", f"{next_60}")
     r5.metric("Renewals in 90 Days", f"{next_90}")
     st.markdown("---")
+
+
+def build_portfolio_report(
+    df_input: pd.DataFrame,
+    top_action_df: pd.DataFrame,
+    selected_csm: str,
+    selected_segment: str,
+    selected_region: str,
+    selected_plan: str,
+) -> str:
+    total_accounts = int(len(df_input))
+    high_risk_accounts = int((df_input["risk_level"] == "High Risk").sum()) if total_accounts else 0
+    revenue_at_risk = float(df_input[df_input["risk_level"] == "High Risk"]["plan_value"].sum()) if total_accounts else 0.0
+    avg_health = float(df_input["health_score"].mean()) if total_accounts else 0.0
+
+    renewal_dates = pd.to_datetime(df_input["renewal_date"], errors="coerce")
+    days_to_renewal = (renewal_dates.dt.date - date.today()).apply(lambda d: d.days if pd.notna(d) else None)
+    renewals_60 = int(((days_to_renewal >= 0) & (days_to_renewal <= 60)).sum())
+
+    owner_rollup = (
+        df_input.groupby("owner", as_index=False)
+        .agg(
+            accounts=("customer_name", "count"),
+            high_risk=("risk_level", lambda s: int((s == "High Risk").sum())),
+            avg_health=("health_score", "mean"),
+            plan_value=("plan_value", "sum"),
+        )
+        .sort_values(["high_risk", "accounts", "plan_value"], ascending=[False, False, False])
+    )
+
+    buffer = StringIO()
+    buffer.write("CX Portfolio MBR Report\n")
+    buffer.write("=======================\n\n")
+    buffer.write("Applied Filters\n")
+    buffer.write("---------------\n")
+    buffer.write(f"CSM: {selected_csm}\n")
+    buffer.write(f"Segment: {selected_segment}\n")
+    buffer.write(f"Region: {selected_region}\n")
+    buffer.write(f"Plan Type: {selected_plan}\n\n")
+
+    buffer.write("Portfolio Snapshot\n")
+    buffer.write("------------------\n")
+    buffer.write(f"Total Accounts: {total_accounts}\n")
+    buffer.write(f"High Risk Accounts: {high_risk_accounts}\n")
+    buffer.write(f"Revenue At Risk: {revenue_at_risk:,.0f}\n")
+    buffer.write(f"Average Health Score: {avg_health:.1f}\n")
+    buffer.write(f"Renewals in Next 60 Days: {renewals_60}\n\n")
+
+    buffer.write("CSM Rollup\n")
+    buffer.write("----------\n")
+    if len(owner_rollup) == 0:
+        buffer.write("No owner-level rows in current filter scope.\n\n")
+    else:
+        for _, row in owner_rollup.iterrows():
+            buffer.write(
+                f"{row['owner']}: Accounts={int(row['accounts'])}, High Risk={int(row['high_risk'])}, "
+                f"Avg Health={float(row['avg_health']):.1f}, ACV={float(row['plan_value']):,.0f}\n"
+            )
+        buffer.write("\n")
+
+    buffer.write("Priority Accounts This Week\n")
+    buffer.write("---------------------------\n")
+    if len(top_action_df) == 0:
+        buffer.write("No priority accounts found in current scope.\n")
+    else:
+        for idx, row in top_action_df.head(10).iterrows():
+            buffer.write(
+                f"{idx + 1}. {row['Customer']} | {row['Risk']} | Owner={row['CSM Owner']} | "
+                f"Renewal={row['Renewal Date']} | Act Before={row['Act Before']} | "
+                f"Action={row['Recommended Action']}\n"
+            )
+    return buffer.getvalue()
 
 
 def update_snapshot_state(df_input: pd.DataFrame):
@@ -1912,6 +1984,9 @@ if st.session_state.user_type == "demo":
         "customer_name": ["Alpha", "Beta", "Gamma", "Delta", "Omega"],
         "owner": ["Aisha", "Rahul", "Aisha", "David", "Rahul"],
         "manager": ["Meera", "Meera", "Arjun", "Arjun", "Meera"],
+        "segment": ["SMB", "Mid-Market", "Enterprise", "SMB", "Enterprise"],
+        "region": ["North America", "EMEA", "APAC", "North America", "EMEA"],
+        "plan_type": ["Starter", "Growth", "Enterprise", "Starter", "Enterprise"],
         "logins_last_30_days": [25, 5, 18, 3, 30],
         "support_tickets": [2, 7, 3, 8, 1],
         "plan_value": [1500, 900, 2000, 800, 3000]
@@ -1977,13 +2052,35 @@ st.subheader("Customer Overview")
 
 if st.session_state.user_type == "premium":
     csm_options = ["All CSM"] + sorted(df["owner"].dropna().unique().tolist())
-    selected_csm = st.selectbox("Select CSM", csm_options, key="premium_csm_select")
-    scoped_df = df.copy() if selected_csm == "All CSM" else df[df["owner"] == selected_csm].copy()
+    segment_options = ["All Segments"] + sorted(df["segment"].dropna().astype(str).unique().tolist())
+    region_options = ["All Regions"] + sorted(df["region"].dropna().astype(str).unique().tolist())
+    plan_options = ["All Plans"] + sorted(df["plan_type"].dropna().astype(str).unique().tolist())
+
+    f1, f2, f3, f4 = st.columns(4)
+    selected_csm = f1.selectbox("Select CSM", csm_options, key="premium_csm_select")
+    selected_segment = f2.selectbox("Select Segment", segment_options, key="premium_segment_select")
+    selected_region = f3.selectbox("Select Region", region_options, key="premium_region_select")
+    selected_plan = f4.selectbox("Select Plan", plan_options, key="premium_plan_select")
+
+    scoped_df = df.copy()
+    if selected_csm != "All CSM":
+        scoped_df = scoped_df[scoped_df["owner"] == selected_csm]
+    if selected_segment != "All Segments":
+        scoped_df = scoped_df[scoped_df["segment"] == selected_segment]
+    if selected_region != "All Regions":
+        scoped_df = scoped_df[scoped_df["region"] == selected_region]
+    if selected_plan != "All Plans":
+        scoped_df = scoped_df[scoped_df["plan_type"] == selected_plan]
+
     customer_options = ["All Customers"] + scoped_df["customer_name"].tolist()
     selected_customer = st.selectbox("Select Customer", customer_options, key="premium_customer_select")
 else:
     selected_customer = st.selectbox("Select Customer", df["customer_name"], key="demo_customer_select")
     scoped_df = df.copy()
+    selected_csm = "Demo Scope"
+    selected_segment = "All Segments"
+    selected_region = "All Regions"
+    selected_plan = "All Plans"
 
 selected_row = None if selected_customer == "All Customers" else scoped_df[scoped_df["customer_name"] == selected_customer].iloc[0]
 summary_key = f"{selected_csm}:{selected_customer}" if st.session_state.user_type == "premium" else selected_customer
@@ -1992,15 +2089,68 @@ if st.session_state.get("ai_summary_for_customer") != summary_key:
     st.session_state["ai_summary_for_customer"] = summary_key
 
 if st.session_state.user_type == "premium":
+    st.subheader("CSM Lead Portfolio Snapshot")
+    portfolio_total = int(len(scoped_df))
+    portfolio_high = int((scoped_df["risk_level"] == "High Risk").sum()) if portfolio_total else 0
+    portfolio_medium = int((scoped_df["risk_level"] == "Medium Risk").sum()) if portfolio_total else 0
+    portfolio_revenue_at_risk = float(scoped_df[scoped_df["risk_level"] == "High Risk"]["plan_value"].sum()) if portfolio_total else 0
+    p1, p2, p3, p4 = st.columns(4)
+    p1.metric("Accounts in Scope", f"{portfolio_total}")
+    p2.metric("High Risk", f"{portfolio_high}")
+    p3.metric("Medium Risk", f"{portfolio_medium}")
+    p4.metric("Revenue At Risk", f"{portfolio_revenue_at_risk:,.0f}")
+
+    owner_rollup = (
+        scoped_df.groupby("owner", as_index=False)
+        .agg(
+            accounts=("customer_name", "count"),
+            high_risk=("risk_level", lambda s: int((s == "High Risk").sum())),
+            avg_health=("health_score", "mean"),
+            revenue=("plan_value", "sum"),
+        )
+        .sort_values(["high_risk", "accounts", "revenue"], ascending=[False, False, False])
+        if len(scoped_df)
+        else pd.DataFrame(columns=["owner", "accounts", "high_risk", "avg_health", "revenue"])
+    )
+    st.caption("Owner rollup for leadership visibility")
+    st.dataframe(
+        owner_rollup.rename(
+            columns={
+                "owner": "CSM Owner",
+                "accounts": "Accounts",
+                "high_risk": "High Risk",
+                "avg_health": "Avg Health",
+                "revenue": "Total ACV",
+            }
+        ),
+        use_container_width=True,
+        hide_index=True,
+    )
+    st.markdown("---")
+
     render_renewal_risk_widgets(scoped_df)
-    st.subheader("Top 10 Accounts Needing Action")
-    top_action_df = build_action_table(scoped_df)
+    st.subheader("Priority Accounts This Week")
+    top_action_df = build_action_table(scoped_df, limit=10)
     st.dataframe(top_action_df, use_container_width=True, hide_index=True)
     st.download_button(
         "Download Top 10 Action List",
         data=top_action_df.to_csv(index=False).encode("utf-8"),
         file_name="top_10_accounts_needing_action.csv",
         mime="text/csv",
+    )
+    portfolio_report = build_portfolio_report(
+        scoped_df,
+        top_action_df,
+        selected_csm=selected_csm,
+        selected_segment=selected_segment,
+        selected_region=selected_region,
+        selected_plan=selected_plan,
+    )
+    st.download_button(
+        "Download Portfolio MBR (PDF)",
+        data=build_simple_pdf_from_text(portfolio_report),
+        file_name="portfolio_mbr_report.pdf",
+        mime="application/pdf",
     )
     st.markdown("---")
 
