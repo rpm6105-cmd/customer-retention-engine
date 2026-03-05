@@ -383,6 +383,7 @@ div[data-testid="metric-container"] {
 
 div[data-testid="metric-container"] [data-testid="stMetricLabel"] {
     color: #334155 !important;
+    opacity: 1 !important;
 }
 
 div[data-testid="metric-container"] [data-testid="stMetricValue"] {
@@ -396,6 +397,25 @@ div[data-testid="metric-container"] [data-testid="stMetricValue"] * {
     color: #0f172a !important;
     opacity: 1 !important;
     -webkit-text-fill-color: #0f172a !important;
+}
+
+/* Compatibility selectors for different Streamlit metric DOM versions */
+div[data-testid="metric-container"] label,
+div[data-testid="metric-container"] label *,
+div[data-testid="metric-container"] p,
+div[data-testid="metric-container"] p *,
+div[data-testid="metric-container"] span,
+div[data-testid="metric-container"] span * {
+    color: #0f172a !important;
+    opacity: 1 !important;
+    -webkit-text-fill-color: #0f172a !important;
+}
+
+div[data-testid="metric-container"] [data-testid="stMetricLabel"] *,
+div[data-testid="metric-container"] [data-testid="stMetricDelta"] * {
+    color: #334155 !important;
+    opacity: 1 !important;
+    -webkit-text-fill-color: #334155 !important;
 }
 
 div[data-testid="metric-container"] [data-testid="stMetricDelta"] {
