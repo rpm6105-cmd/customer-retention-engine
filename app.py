@@ -531,6 +531,21 @@ div[data-testid="stForm"], div[data-testid="stExpander"] {
     padding: 14px;
 }
 
+/* Expander header readability */
+div[data-testid="stExpander"] summary {
+    background: #eef6ff !important;
+    color: #0f4c5c !important;
+    border: 1px solid #cfe0f5 !important;
+    border-radius: 10px !important;
+    padding: 10px 12px !important;
+    font-weight: 800 !important;
+}
+
+div[data-testid="stExpander"] summary * {
+    color: #0f4c5c !important;
+    fill: #0f4c5c !important;
+}
+
 /* Inputs */
 div[data-baseweb="input"] > div,
 div[data-baseweb="select"] > div,
