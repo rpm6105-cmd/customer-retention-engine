@@ -115,6 +115,47 @@ button[kind="secondary"] * {
     font-weight: 600;
 }
 
+/* Alert cards (success/info/warning/error) */
+div[data-testid="stAlert"] {
+    border-radius: 14px !important;
+    border: 1px solid #d6e3f1 !important;
+    box-shadow: none !important;
+}
+
+.stSuccess {
+    background: linear-gradient(180deg, #f3fbf7 0%, #ebf8f2 100%) !important;
+    border-color: #b7e4cf !important;
+}
+
+.stInfo {
+    background: linear-gradient(180deg, #f4f9ff 0%, #edf6ff 100%) !important;
+    border-color: #c9def7 !important;
+}
+
+.stWarning {
+    background: linear-gradient(180deg, #fffdf4 0%, #fff9e8 100%) !important;
+    border-color: #f2dfaa !important;
+}
+
+.stError {
+    background: linear-gradient(180deg, #fff5f5 0%, #ffecec 100%) !important;
+    border-color: #f5c2c2 !important;
+}
+
+div[data-testid="stAlert"] [data-testid="stMarkdownContainer"] p,
+div[data-testid="stAlert"] [data-testid="stMarkdownContainer"] li,
+div[data-testid="stAlert"] [data-testid="stMarkdownContainer"] span {
+    color: #1f2937 !important;
+    font-weight: 600 !important;
+    background: transparent !important;
+    -webkit-text-fill-color: #1f2937 !important;
+}
+
+div[data-testid="stAlert"] code {
+    background: transparent !important;
+    color: #1f2937 !important;
+}
+
 .ai-summary-card {
     margin-top: 10px;
     padding: 14px 16px;
