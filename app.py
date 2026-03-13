@@ -3019,7 +3019,7 @@ if st.session_state.user_type == "premium":
             <div class='copilot-link-kicker'>Shared Intelligence Layer</div>
             <div class='copilot-link-title'>Open Customer Success AI Copilot</div>
             <div class='copilot-link-copy'>
-                Explore the same customer portfolio through the AI Copilot to surface churn signals,
+                Explore your customer portfolio through the AI Copilot to surface churn signals,
                 spot expansion potential, and review guided recommendations for the next best move.
             </div>
             <div class='copilot-link-note'>Use this when you want a faster executive view of what needs attention, what can expand, and what action a CSM should take next.</div>
