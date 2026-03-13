@@ -563,6 +563,27 @@ div[data-testid="stAlert"] code {
     padding: 0 18px;
 }
 
+.account-center-wrap {
+    padding: 0 18px 8px 18px;
+}
+
+[data-testid="stExpander"].account-center-expander {
+    border: 1px solid #cfe0f4 !important;
+    border-radius: 16px !important;
+    background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%) !important;
+    box-shadow: 0 12px 24px rgba(18, 57, 100, 0.05) !important;
+}
+
+[data-testid="stExpander"].account-center-expander details summary {
+    padding-top: 0.85rem !important;
+    padding-bottom: 0.85rem !important;
+}
+
+[data-testid="stExpander"].account-center-expander details summary p {
+    color: #123a58 !important;
+    font-weight: 800 !important;
+}
+
 /* Remove Streamlit top black header area */
 header[data-testid="stHeader"] {
     display: none !important;
@@ -603,6 +624,11 @@ div[data-baseweb="base-input"] input {
     font-weight: 600 !important;
 }
 
+div[data-baseweb="input"] > div > div,
+div[data-baseweb="base-input"] > div > div {
+    background: #ffffff !important;
+}
+
 div[data-baseweb="base-input"] {
     background: transparent !important;
 }
@@ -624,6 +650,11 @@ div[data-baseweb="base-input"] button:hover {
 
 div[data-baseweb="base-input"] button svg {
     fill: #0f766e !important;
+}
+
+div[data-baseweb="base-input"] [role="button"],
+div[data-baseweb="base-input"] [type="button"] {
+    background: transparent !important;
 }
 
 div[data-baseweb="input"] {
@@ -3172,52 +3203,56 @@ with colB:
         unsafe_allow_html=True,
     )
     st.markdown("<div class='account-toolbar-label'>Quick Actions</div>", unsafe_allow_html=True)
-    st.markdown("<div class='account-action-stack'>", unsafe_allow_html=True)
     if st.session_state.user_type == "premium" and st.session_state.user_email:
-        with st.popover("Open Account Center"):
-            profile = get_user_profile(st.session_state.user_email)
-            current_name = profile[0] if profile else st.session_state.user_name
-            current_company = profile[1] if profile else ""
-            current_place = profile[2] if profile else ""
+        st.markdown("<div class='account-center-wrap'>", unsafe_allow_html=True)
+        with st.container():
+            st.markdown("<div class='account-center-expander'>", unsafe_allow_html=True)
+            with st.expander("Open Account Center", expanded=False):
+                profile = get_user_profile(st.session_state.user_email)
+                current_name = profile[0] if profile else st.session_state.user_name
+                current_company = profile[1] if profile else ""
+                current_place = profile[2] if profile else ""
 
-            st.markdown("**Edit Profile**")
-            with st.form("edit_profile_form"):
-                new_name = st.text_input("Name", value=current_name)
-                new_company = st.text_input("Company", value=current_company)
-                new_place = st.text_input("Place", value=current_place)
-                save_profile = st.form_submit_button("Save Profile", type="secondary")
-                if save_profile:
-                    update_user_profile(
-                        st.session_state.user_email,
-                        new_name.strip(),
-                        new_company.strip(),
-                        new_place.strip(),
-                    )
-                    st.session_state.user_name = new_name.strip() or st.session_state.user_name
-                    st.success("Profile updated.")
+                st.markdown("**Edit Profile**")
+                with st.form("edit_profile_form"):
+                    new_name = st.text_input("Name", value=current_name)
+                    new_company = st.text_input("Company", value=current_company)
+                    new_place = st.text_input("Place", value=current_place)
+                    save_profile = st.form_submit_button("Save Profile", type="secondary")
+                    if save_profile:
+                        update_user_profile(
+                            st.session_state.user_email,
+                            new_name.strip(),
+                            new_company.strip(),
+                            new_place.strip(),
+                        )
+                        st.session_state.user_name = new_name.strip() or st.session_state.user_name
+                        st.success("Profile updated.")
 
-            st.markdown("**Settings (Change Password)**")
-            with st.form("change_password_form"):
-                current_pwd = st.text_input("Current Password", type="password")
-                new_pwd = st.text_input("New Password", type="password")
-                confirm_pwd = st.text_input("Confirm New Password", type="password")
-                change_pwd = st.form_submit_button("Change Password", type="secondary")
-                if change_pwd:
-                    db_row = c.execute(
-                        "SELECT password FROM users WHERE email = ?",
-                        (st.session_state.user_email,),
-                    ).fetchone()
-                    if not db_row or db_row[0] != current_pwd.strip():
-                        st.error("Current password is incorrect.")
-                    elif not new_pwd.strip():
-                        st.error("New password cannot be empty.")
-                    elif new_pwd.strip() != confirm_pwd.strip():
-                        st.error("New passwords do not match.")
-                    else:
-                        update_user_password(st.session_state.user_email, new_pwd.strip())
-                        st.success("Password changed successfully.")
-
-    if st.button("Logout", type="primary"):
+                st.markdown("**Settings (Change Password)**")
+                with st.form("change_password_form"):
+                    current_pwd = st.text_input("Current Password", type="password")
+                    new_pwd = st.text_input("New Password", type="password")
+                    confirm_pwd = st.text_input("Confirm New Password", type="password")
+                    change_pwd = st.form_submit_button("Change Password", type="secondary")
+                    if change_pwd:
+                        db_row = c.execute(
+                            "SELECT password FROM users WHERE email = ?",
+                            (st.session_state.user_email,),
+                        ).fetchone()
+                        if not db_row or db_row[0] != current_pwd.strip():
+                            st.error("Current password is incorrect.")
+                        elif not new_pwd.strip():
+                            st.error("New password cannot be empty.")
+                        elif new_pwd.strip() != confirm_pwd.strip():
+                            st.error("New passwords do not match.")
+                        else:
+                            update_user_password(st.session_state.user_email, new_pwd.strip())
+                            st.success("Password changed successfully.")
+            st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("<div class='account-action-stack'>", unsafe_allow_html=True)
+    if st.button("Logout", type="primary", use_container_width=True):
         st.session_state.clear()
         st.rerun()
     st.markdown("</div>", unsafe_allow_html=True)
