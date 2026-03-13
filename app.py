@@ -304,62 +304,93 @@ div[data-testid="stAlert"] code {
 }
 
 .sidebar-shell {
-    padding: 18px 16px 16px 16px;
-    border-radius: 22px;
-    border: 1px solid rgba(255, 255, 255, 0.10);
-    background:
-        radial-gradient(circle at top right, rgba(120, 197, 214, 0.16), transparent 28%),
-        linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.04) 100%);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+    padding: 0.55rem 0.15rem 1rem 0.15rem;
+}
+
+.sidebar-hero {
+    padding: 1rem;
+    border-radius: 18px;
+    background: linear-gradient(145deg, rgba(255,255,255,0.10), rgba(255,255,255,0.04));
+    border: 1px solid rgba(255,255,255,0.10);
+    margin-bottom: 0.85rem;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
 }
 
 .sidebar-kicker {
-    color: #9be7d1;
-    font-size: 11px;
-    font-weight: 800;
-    letter-spacing: 0.06em;
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
-}
-
-.sidebar-name {
-    margin-top: 8px;
-    color: #f8fcff;
-    font-size: 24px;
-    font-weight: 900;
-    line-height: 1.1;
-}
-
-.sidebar-role {
-    margin-top: 6px;
-    color: #c8daec;
-    font-size: 13px;
+    opacity: 0.85;
     font-weight: 700;
 }
 
+.sidebar-name {
+    font-size: 1.25rem;
+    font-weight: 900;
+    line-height: 1.1;
+    margin-top: 0.35rem;
+}
+
+.sidebar-copy {
+    font-size: 0.88rem;
+    line-height: 1.45;
+    opacity: 0.92;
+    margin-top: 0.45rem;
+}
+
+.sidebar-role {
+    margin-top: 0.28rem;
+    font-size: 0.85rem;
+    opacity: 0.92;
+}
+
+.sidebar-chip-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 0.75rem;
+}
+
+.sidebar-badge {
+    padding: 0.45rem 0.7rem;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.10);
+    border: 1px solid rgba(255,255,255,0.12);
+    color: #eef7ff;
+    font-weight: 700;
+    display: inline-block;
+    margin-bottom: 0;
+}
+
+.nav-shell {
+    margin-top: 0.9rem;
+    margin-bottom: 1rem;
+}
+
 .sidebar-nav-wrap {
-    margin-top: 16px;
-    padding-top: 16px;
-    border-top: 1px solid rgba(255,255,255,0.10);
+    margin-top: 0;
+    padding-top: 0;
+    border-top: 0;
 }
 
 .sidebar-nav-title {
-    color: #dcebfb;
-    font-size: 12px;
-    font-weight: 800;
-    letter-spacing: 0.05em;
+    font-size: 0.74rem;
     text-transform: uppercase;
-    margin-bottom: 8px;
+    letter-spacing: 0.12em;
+    opacity: 0.82;
+    font-weight: 700;
+    margin-bottom: 0.55rem;
 }
 
 .sidebar-nav-link {
     display: block;
-    margin-bottom: 8px;
-    padding: 10px 12px;
-    border-radius: 14px;
+    margin-bottom: 0.55rem;
+    padding: 0.8rem 0.9rem;
+    border-radius: 16px;
     border: 1px solid rgba(255,255,255,0.12);
     background: rgba(255, 255, 255, 0.08);
     color: #f4f9ff !important;
-    font-size: 14px;
+    font-size: 0.92rem;
     font-weight: 700;
     text-decoration: none !important;
     transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
@@ -369,6 +400,13 @@ div[data-testid="stAlert"] code {
     border-color: rgba(255,255,255,0.22);
     box-shadow: 0 10px 22px rgba(4, 15, 31, 0.24);
     transform: translateY(-1px);
+}
+
+.nav-tip {
+    margin-top: 0.55rem;
+    font-size: 0.82rem;
+    line-height: 1.4;
+    opacity: 0.88;
 }
 
 .account-panel-label {
@@ -659,9 +697,9 @@ div[data-testid="stButton"] > button {
     min-height: 44px !important;
 }
 
-/* Remove Streamlit top black header area */
 header[data-testid="stHeader"] {
-    display: none !important;
+    background: transparent;
+    height: 0;
 }
 
 section[data-testid="stSidebar"] {
@@ -669,6 +707,10 @@ section[data-testid="stSidebar"] {
         radial-gradient(circle at top right, rgba(69, 148, 182, 0.22), transparent 30%),
         linear-gradient(180deg, #11364a 0%, #0d2232 100%) !important;
     border-right: 1px solid rgba(255,255,255,0.08) !important;
+}
+
+[data-testid="stSidebarNav"] {
+    display: none !important;
 }
 
 section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p,
@@ -3356,12 +3398,27 @@ if st.session_state.logged_in:
         st.markdown(
             f"""
             <div class='sidebar-shell'>
-                <div class='sidebar-kicker'>Customer Success Workspace</div>
-                <div class='sidebar-name'>{escape(str(st.session_state.user_name))}</div>
-                <div class='sidebar-role'>{escape('Admin access' if st.session_state.get('user_role') == 'admin' else ('Demo access' if st.session_state.user_type == 'demo' else 'CSM access'))}</div>
+                <div class='sidebar-hero'>
+                    <div class='sidebar-kicker'>Customer Success Workspace</div>
+                    <div class='sidebar-name'>Customer Retention &amp; Growth Engine</div>
+                    <div class='sidebar-copy'>Track renewal risk, assign ownership, and guide retention execution from one premium workspace.</div>
+                    <div class='sidebar-chip-row'>
+                        <span class='sidebar-badge'>Retention Ops</span>
+                        <span class='sidebar-badge'>Risk Watch</span>
+                        <span class='sidebar-badge'>AI Linked</span>
+                    </div>
+                </div>
+                <div class='sidebar-hero'>
+                    <div class='sidebar-kicker'>Signed In As</div>
+                    <div class='sidebar-name'>{escape(str(st.session_state.user_name))}</div>
+                    <div class='sidebar-role'>{escape('Admin access' if st.session_state.get('user_role') == 'admin' else ('Demo access' if st.session_state.user_type == 'demo' else 'CSM access'))}</div>
+                </div>
                 <div class='sidebar-nav-wrap'>
+                    <div class='nav-shell'>
                     <div class='sidebar-nav-title'>Jump To Section</div>
                     {''.join(f"<a class='sidebar-nav-link' href='#{anchor}'>{escape(label)}</a>" for label, anchor in nav_links)}
+                    <div class='nav-tip'>If the sidebar is collapsed, use the small top-left control to reopen it.</div>
+                    </div>
                 </div>
             </div>
             """,
