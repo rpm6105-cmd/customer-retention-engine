@@ -418,6 +418,38 @@ div[data-testid="stAlert"] code {
     box-shadow: 0 16px 32px rgba(18, 57, 100, 0.06);
 }
 
+.auth-toggle-wrap label {
+    color: #35506b !important;
+    font-size: 13px !important;
+    font-weight: 800 !important;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.auth-toggle-wrap div[role="radiogroup"] {
+    gap: 12px !important;
+}
+
+.auth-toggle-wrap div[role="radiogroup"] label {
+    min-width: 120px;
+    justify-content: center !important;
+    padding: 10px 16px !important;
+    border-radius: 999px !important;
+    border: 1px solid #d5e3f1 !important;
+    background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%) !important;
+    box-shadow: 0 10px 20px rgba(18, 57, 100, 0.06);
+}
+
+.auth-toggle-wrap div[role="radiogroup"] label:has(input:checked) {
+    border-color: #0f766e !important;
+    background: linear-gradient(135deg, #0f766e 0%, #1d4ed8 100%) !important;
+}
+
+.auth-toggle-wrap div[role="radiogroup"] label:has(input:checked) * {
+    color: #ffffff !important;
+    fill: #ffffff !important;
+}
+
 .auth-card {
     min-height: 140px;
     margin-top: 8px;
@@ -429,13 +461,18 @@ div[data-testid="stAlert"] code {
 }
 
 .auth-card-demo {
-    background: linear-gradient(180deg, #ffffff 0%, #f4fbff 100%);
+    background:
+        radial-gradient(circle at top left, rgba(29, 78, 216, 0.08), transparent 26%),
+        linear-gradient(180deg, #ffffff 0%, #f4fbff 100%);
+    border-color: #cfe0f4;
 }
 
 .auth-card-premium {
     background:
-        radial-gradient(circle at top right, rgba(15, 118, 110, 0.14), transparent 26%),
-        linear-gradient(145deg, #f7fbff 0%, #eef6ff 100%);
+        radial-gradient(circle at top right, rgba(15, 118, 110, 0.18), transparent 26%),
+        linear-gradient(145deg, #effaf6 0%, #eef6ff 100%);
+    border-color: #b9dccf;
+    box-shadow: 0 24px 46px rgba(15, 118, 110, 0.10);
 }
 
 .auth-card-kicker {
@@ -460,6 +497,20 @@ div[data-testid="stAlert"] code {
     line-height: 1.55;
 }
 
+.auth-accent-demo {
+    margin-top: 14px;
+    color: #1d4ed8;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.auth-accent-premium {
+    margin-top: 14px;
+    color: #0f766e;
+    font-size: 13px;
+    font-weight: 700;
+}
+
 .signup-shell {
     margin-top: 10px;
     padding: 24px 26px 16px 26px;
@@ -482,6 +533,23 @@ div[data-testid="stAlert"] code {
     font-size: 15px;
     font-weight: 700;
     box-shadow: 0 12px 24px rgba(20, 83, 45, 0.07);
+}
+
+.account-action-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.account-toolbar-label {
+    color: #53708c;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin-top: 14px;
+    margin-bottom: 6px;
 }
 
 /* Remove Streamlit top black header area */
@@ -2878,6 +2946,7 @@ if not st.session_state.logged_in:
                         Enter the guided demo environment to review the experience, dashboards, and workflow
                         without setting up your own account.
                     </div>
+                    <div class='auth-accent-demo'>Best for quick walkthroughs and interface previews</div>
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -2906,6 +2975,7 @@ if not st.session_state.logged_in:
                         Sign in to access the full retention workspace with uploads, customer assignment,
                         risk monitoring, and premium analytics.
                     </div>
+                    <div class='auth-accent-premium'>Best for live account review, ownership, and executive retention workflows</div>
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -3054,8 +3124,10 @@ with colB:
         """,
         unsafe_allow_html=True,
     )
+    st.markdown("<div class='account-toolbar-label'>Quick Actions</div>", unsafe_allow_html=True)
+    st.markdown("<div class='account-action-stack'>", unsafe_allow_html=True)
     if st.session_state.user_type == "premium" and st.session_state.user_email:
-        with st.popover("Account"):
+        with st.popover("Open Account Center"):
             profile = get_user_profile(st.session_state.user_email)
             current_name = profile[0] if profile else st.session_state.user_name
             current_company = profile[1] if profile else ""
@@ -3098,9 +3170,10 @@ with colB:
                         update_user_password(st.session_state.user_email, new_pwd.strip())
                         st.success("Password changed successfully.")
 
-    if st.button("Logout"):
+    if st.button("Logout", type="primary"):
         st.session_state.clear()
         st.rerun()
+    st.markdown("</div>", unsafe_allow_html=True)
 st.markdown("---")
 st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
 
