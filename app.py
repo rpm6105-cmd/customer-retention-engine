@@ -592,8 +592,8 @@ div[data-baseweb="input"] > div,
 div[data-baseweb="base-input"] > div {
     border-radius: 16px !important;
     border: 1px solid #cddced !important;
-    background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%) !important;
-    box-shadow: 0 10px 22px rgba(18, 57, 100, 0.05) !important;
+    background: #ffffff !important;
+    box-shadow: 0 8px 18px rgba(18, 57, 100, 0.04) !important;
     overflow: hidden !important;
 }
 
@@ -608,19 +608,33 @@ div[data-baseweb="base-input"] {
 }
 
 div[data-baseweb="base-input"] button {
-    margin: 6px !important;
-    border-radius: 14px !important;
-    background: linear-gradient(135deg, #0f766e 0%, #2c7a7b 100%) !important;
+    margin: 0 8px 0 0 !important;
+    border-radius: 999px !important;
+    background: rgba(15, 118, 110, 0.10) !important;
     border: 0 !important;
-    min-width: 60px !important;
+    min-width: 34px !important;
+    width: 34px !important;
+    height: 34px !important;
+    box-shadow: none !important;
 }
 
 div[data-baseweb="base-input"] button:hover {
-    background: linear-gradient(135deg, #0d5f59 0%, #245f61 100%) !important;
+    background: rgba(15, 118, 110, 0.16) !important;
 }
 
 div[data-baseweb="base-input"] button svg {
-    fill: #ffffff !important;
+    fill: #0f766e !important;
+}
+
+div[data-baseweb="input"] {
+    background: transparent !important;
+}
+
+div[data-baseweb="base-input"] > div::before,
+div[data-baseweb="input"] > div::before,
+div[data-baseweb="base-input"] > div::after,
+div[data-baseweb="input"] > div::after {
+    display: none !important;
 }
 
 .help-widget {
