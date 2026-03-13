@@ -317,6 +317,160 @@ div[data-testid="stAlert"] code {
     height: 10px;
 }
 
+.landing-hero {
+    margin-top: 8px;
+    padding: 34px 36px;
+    border-radius: 28px;
+    border: 1px solid #c8dbef;
+    background:
+        radial-gradient(circle at top left, rgba(15, 118, 110, 0.18), transparent 24%),
+        radial-gradient(circle at right top, rgba(29, 78, 216, 0.18), transparent 22%),
+        linear-gradient(140deg, #fbfdff 0%, #eef6ff 48%, #f5fbff 100%);
+    box-shadow: 0 30px 60px rgba(18, 57, 100, 0.12);
+}
+
+.landing-kicker {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 12px;
+    border-radius: 999px;
+    background: rgba(15, 118, 110, 0.10);
+    color: #0f766e;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.landing-title {
+    margin-top: 18px;
+    color: #0f2442;
+    font-size: 60px;
+    line-height: 1.02;
+    font-weight: 900;
+    letter-spacing: -0.04em;
+    max-width: 980px;
+}
+
+.landing-subtitle {
+    margin-top: 16px;
+    max-width: 860px;
+    color: #47627d;
+    font-size: 19px;
+    line-height: 1.6;
+}
+
+.landing-chip-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.landing-chip {
+    padding: 9px 13px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.72);
+    border: 1px solid #d4e3f2;
+    color: #214866;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.landing-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+    margin-top: 24px;
+}
+
+.landing-stat-card {
+    padding: 18px 18px 16px 18px;
+    border-radius: 20px;
+    border: 1px solid #d6e6f6;
+    background: rgba(255, 255, 255, 0.78);
+    backdrop-filter: blur(10px);
+}
+
+.landing-stat-value {
+    color: #0f2442;
+    font-size: 30px;
+    font-weight: 900;
+    line-height: 1;
+}
+
+.landing-stat-label {
+    margin-top: 8px;
+    color: #4f6a86;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.4;
+}
+
+.auth-toggle-wrap {
+    margin-top: 18px;
+    margin-bottom: 12px;
+    padding: 14px 16px;
+    border-radius: 18px;
+    border: 1px solid #d7e4f3;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+    box-shadow: 0 16px 32px rgba(18, 57, 100, 0.06);
+}
+
+.auth-card {
+    min-height: 140px;
+    margin-top: 8px;
+    margin-bottom: 12px;
+    padding: 20px 20px 14px 20px;
+    border-radius: 22px;
+    border: 1px solid #d5e3f1;
+    box-shadow: 0 20px 40px rgba(18, 57, 100, 0.08);
+}
+
+.auth-card-demo {
+    background: linear-gradient(180deg, #ffffff 0%, #f4fbff 100%);
+}
+
+.auth-card-premium {
+    background:
+        radial-gradient(circle at top right, rgba(15, 118, 110, 0.14), transparent 26%),
+        linear-gradient(145deg, #f7fbff 0%, #eef6ff 100%);
+}
+
+.auth-card-kicker {
+    color: #0f766e;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.auth-card-title {
+    margin-top: 10px;
+    color: #123a58;
+    font-size: 22px;
+    font-weight: 800;
+}
+
+.auth-card-copy {
+    margin-top: 8px;
+    color: #4a657f;
+    font-size: 14px;
+    line-height: 1.55;
+}
+
+.signup-shell {
+    margin-top: 10px;
+    padding: 24px 26px 16px 26px;
+    border-radius: 24px;
+    border: 1px solid #d5e3f1;
+    background:
+        radial-gradient(circle at top right, rgba(29, 78, 216, 0.12), transparent 24%),
+        linear-gradient(145deg, #ffffff 0%, #f5faff 100%);
+    box-shadow: 0 22px 44px rgba(18, 57, 100, 0.08);
+}
+
 .data-status-card {
     margin-top: 14px;
     margin-bottom: 8px;
@@ -353,6 +507,20 @@ div[data-testid="stFileUploaderFileData"] {
     color: #0f172a !important;
     opacity: 1 !important;
     -webkit-text-fill-color: #0f172a !important;
+}
+
+div[data-baseweb="input"] > div,
+div[data-baseweb="base-input"] > div {
+    border-radius: 16px !important;
+    border: 1px solid #cddced !important;
+    background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%) !important;
+    box-shadow: 0 10px 22px rgba(18, 57, 100, 0.05) !important;
+}
+
+div[data-baseweb="input"] input,
+div[data-baseweb="base-input"] input {
+    color: #0f172a !important;
+    font-weight: 600 !important;
 }
 
 .help-widget {
@@ -2653,11 +2821,45 @@ if "ai_summary_for_customer" not in st.session_state:
 
 if not st.session_state.logged_in:
 
-    st.markdown("<h1 style='text-align:center;'>Customer Retention & Growth Engine</h1>", unsafe_allow_html=True)
+    st.markdown(
+        """
+        <div class='landing-hero'>
+            <div class='landing-kicker'>Customer Success Platform</div>
+            <div class='landing-title'>Customer Retention &amp; Growth Engine</div>
+            <div class='landing-subtitle'>
+                A premium workspace for Customer Success teams to track risk, organize account ownership,
+                and move from reactive updates to proactive retention execution.
+            </div>
+            <div class='landing-chip-row'>
+                <div class='landing-chip'>Portfolio Visibility</div>
+                <div class='landing-chip'>Renewal Risk Tracking</div>
+                <div class='landing-chip'>CSM Assignment</div>
+                <div class='landing-chip'>AI Copilot Connected</div>
+            </div>
+            <div class='landing-stat-grid'>
+                <div class='landing-stat-card'>
+                    <div class='landing-stat-value'>1</div>
+                    <div class='landing-stat-label'>Shared workspace for retention reviews, owner updates, and leadership visibility</div>
+                </div>
+                <div class='landing-stat-card'>
+                    <div class='landing-stat-value'>3</div>
+                    <div class='landing-stat-label'>Core decisions in one flow: prioritize, assign, and take action</div>
+                </div>
+                <div class='landing-stat-card'>
+                    <div class='landing-stat-value'>24/7</div>
+                    <div class='landing-stat-label'>Portfolio access for CSM leads and assigned team members</div>
+                </div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
     if st.session_state.force_login_view:
         st.session_state["premium_option"] = "Login"
         st.session_state.force_login_view = False
+    st.markdown("<div class='auth-toggle-wrap'>", unsafe_allow_html=True)
     option = st.radio("Premium Access", ["Login", "Sign Up"], key="premium_option", horizontal=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
     if st.session_state.signup_success:
         st.success(st.session_state.signup_success)
@@ -2667,7 +2869,19 @@ if not st.session_state.logged_in:
         col1, col2 = st.columns(2)
 
         with col1:
-            st.subheader("🚀 Try Demo")
+            st.markdown(
+                """
+                <div class='auth-card auth-card-demo'>
+                    <div class='auth-card-kicker'>Explore The Product</div>
+                    <div class='auth-card-title'>Try Demo</div>
+                    <div class='auth-card-copy'>
+                        Enter the guided demo environment to review the experience, dashboards, and workflow
+                        without setting up your own account.
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
             demo_user = st.text_input("Username", key="demo_user")
             demo_pass = st.text_input("Password", type="password", key="demo_password")
 
@@ -2683,7 +2897,19 @@ if not st.session_state.logged_in:
                     st.error("Invalid Demo Credentials")
 
         with col2:
-            st.subheader("📂 Use My CSV (Premium)")
+            st.markdown(
+                """
+                <div class='auth-card auth-card-premium'>
+                    <div class='auth-card-kicker'>Premium Workspace</div>
+                    <div class='auth-card-title'>Use My CSV</div>
+                    <div class='auth-card-copy'>
+                        Sign in to access the full retention workspace with uploads, customer assignment,
+                        risk monitoring, and premium analytics.
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
             email = st.text_input("Email", key="login_email")
             password = st.text_input("Password", type="password", key="premium_password")
 
@@ -2717,7 +2943,19 @@ if not st.session_state.logged_in:
     else:
         _, col_mid, _ = st.columns([1, 1.2, 1])
         with col_mid:
-            st.subheader("📂 Use My CSV (Premium)")
+            st.markdown(
+                """
+                <div class='signup-shell'>
+                    <div class='auth-card-kicker'>Premium Onboarding</div>
+                    <div class='auth-card-title'>Create your Customer Success workspace</div>
+                    <div class='auth-card-copy'>
+                        Set up a premium account for your company domain and start managing customer health,
+                        assignments, and retention workflows in one place.
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
             name = st.text_input("Name", key="signup_name")
             company = st.text_input("Company", key="signup_company")
             email = st.text_input("Email", key="signup_email")
