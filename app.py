@@ -299,6 +299,74 @@ div[data-testid="stAlert"] code {
     overflow: hidden;
 }
 
+.sidebar-shell {
+    padding: 18px 16px 16px 16px;
+    border-radius: 22px;
+    border: 1px solid rgba(201, 222, 242, 0.55);
+    background:
+        radial-gradient(circle at top right, rgba(15, 118, 110, 0.16), transparent 28%),
+        linear-gradient(180deg, rgba(247, 251, 255, 0.96) 0%, rgba(238, 246, 255, 0.96) 100%);
+    box-shadow: 0 20px 38px rgba(18, 57, 100, 0.10);
+}
+
+.sidebar-kicker {
+    color: #0f766e;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.sidebar-name {
+    margin-top: 8px;
+    color: #0f2442;
+    font-size: 24px;
+    font-weight: 900;
+    line-height: 1.1;
+}
+
+.sidebar-role {
+    margin-top: 6px;
+    color: #55718c;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.sidebar-nav-wrap {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid #d5e3f1;
+}
+
+.sidebar-nav-title {
+    color: #35506b;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+}
+
+.sidebar-nav-link {
+    display: block;
+    margin-bottom: 8px;
+    padding: 10px 12px;
+    border-radius: 14px;
+    border: 1px solid #d5e3f1;
+    background: rgba(255, 255, 255, 0.72);
+    color: #184061 !important;
+    font-size: 14px;
+    font-weight: 700;
+    text-decoration: none !important;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.sidebar-nav-link:hover {
+    border-color: #98c3eb;
+    box-shadow: 0 10px 22px rgba(18, 57, 100, 0.08);
+    transform: translateY(-1px);
+}
+
 .account-panel-label {
     color: #0f766e;
     font-size: 12px;
@@ -2624,6 +2692,7 @@ def build_data_quality_summary(df_input: pd.DataFrame, source_name: str) -> dict
 
 
 def render_data_quality_panel(summary: dict):
+    st.markdown("<div id='section-data-quality'></div>", unsafe_allow_html=True)
     st.subheader("Data Quality Check")
     st.caption(f"Latest upload: {summary['source_name']}")
     cards = [
@@ -2702,6 +2771,7 @@ def render_renewal_risk_widgets(df_input: pd.DataFrame):
     next_60 = int(((days_out >= 0) & (days_out <= 60)).sum())
     next_90 = int(((days_out >= 0) & (days_out <= 90)).sum())
 
+    st.markdown("<div id='section-renewal-risk'></div>", unsafe_allow_html=True)
     st.subheader("Renewal & Risk Watch")
     cards = [
         ("High Risk Accounts", f"{high_risk_count}"),
@@ -3191,57 +3261,43 @@ if not st.session_state.logged_in:
 # HEADER
 # =============================
 
-colA, colB = st.columns([7, 3])
-
-with colA:
-    st.markdown(
-        """
-        <div class='header-hero'>
-            <div class='header-kicker'>Premium CX Workspace</div>
-            <div class='header-title'>Customer Retention &amp; Growth Engine</div>
-            <div class='header-subtitle'>
-                Centralize account health, renewal risk, customer ownership, and action planning in one
-                workspace built for CSM leads and frontline execution.
-            </div>
-            <div class='header-chip-row'>
-                <div class='header-chip'>Retention Operations</div>
-                <div class='header-chip'>Renewal Visibility</div>
-                <div class='header-chip'>CSM Assignment Control</div>
-                <div class='header-chip'>AI Copilot Connected</div>
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
+if st.session_state.logged_in:
+    nav_links = []
+    if st.session_state.user_type == "premium" and st.session_state.get("last_upload_quality"):
+        nav_links.append(("Data Quality Check", "section-data-quality"))
+    nav_links.extend(
+        [
+            ("Customer Overview", "section-customer-overview"),
+            ("Renewal & Risk Watch", "section-renewal-risk"),
+        ]
     )
     if st.session_state.user_type == "premium":
-        master_meta = get_master_dataset_meta()
-        if master_meta:
-            st.markdown(
-                f"<span class='data-source-badge'>Data Source: Company Master ({escape(str(master_meta['source_name']))})</span>",
-                unsafe_allow_html=True,
-            )
-
-with colB:
-    if st.session_state.user_type == "demo":
-        role_label = "Demo"
-    else:
-        role_label = "Admin" if st.session_state.get("user_role") == "admin" else "CSM"
-    st.markdown("<div class='account-panel-shell'>", unsafe_allow_html=True)
-    st.markdown(
-        f"""
-        <div class='account-panel'>
-            <div class='account-panel-label'>Signed In As</div>
-            <div class='account-panel-name'>{escape(str(st.session_state.user_name))}</div>
-            <div class='account-panel-role'>{escape(role_label)} access</div>
-            <div class='account-panel-spacer'></div>
-        </div>
-        """,
-        unsafe_allow_html=True,
+        nav_links.append(("CSM Lead Portfolio Snapshot", "section-portfolio-snapshot"))
+        nav_links.append(("Priority Accounts This Week", "section-priority-accounts"))
+    nav_links.extend(
+        [
+            ("AI Executive Summary", "section-ai-summary"),
+            ("Task Tracker", "section-task-tracker"),
+        ]
     )
-    if st.session_state.user_type == "premium" and st.session_state.user_email:
-        st.markdown("<div class='account-center-wrap'>", unsafe_allow_html=True)
-        with st.container():
-            st.markdown("<div class='account-center-expander'>", unsafe_allow_html=True)
+
+    with st.sidebar:
+        st.markdown(
+            f"""
+            <div class='sidebar-shell'>
+                <div class='sidebar-kicker'>Customer Success Workspace</div>
+                <div class='sidebar-name'>{escape(str(st.session_state.user_name))}</div>
+                <div class='sidebar-role'>{escape('Admin access' if st.session_state.get('user_role') == 'admin' else ('Demo access' if st.session_state.user_type == 'demo' else 'CSM access'))}</div>
+                <div class='sidebar-nav-wrap'>
+                    <div class='sidebar-nav-title'>Jump To Section</div>
+                    {''.join(f"<a class='sidebar-nav-link' href='#{anchor}'>{escape(label)}</a>" for label, anchor in nav_links)}
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        if st.session_state.user_type == "premium" and st.session_state.user_email:
             with st.expander("Open Account Center", expanded=False):
                 profile = get_user_profile(st.session_state.user_email)
                 current_name = profile[0] if profile else st.session_state.user_name
@@ -3284,14 +3340,40 @@ with colB:
                         else:
                             update_user_password(st.session_state.user_email, new_pwd.strip())
                             st.success("Password changed successfully.")
-            st.markdown("</div>", unsafe_allow_html=True)
-        st.markdown("</div>", unsafe_allow_html=True)
-    st.markdown("<div class='account-action-stack'>", unsafe_allow_html=True)
-    if st.button("Logout", type="primary", use_container_width=True):
-        st.session_state.clear()
-        st.rerun()
-    st.markdown("</div>", unsafe_allow_html=True)
-    st.markdown("</div>", unsafe_allow_html=True)
+
+        if st.button("Logout", type="primary", width="stretch", key="sidebar_logout"):
+            st.session_state.clear()
+            st.rerun()
+
+colA = st.container()
+
+with colA:
+    st.markdown(
+        """
+        <div class='header-hero'>
+            <div class='header-kicker'>Premium CX Workspace</div>
+            <div class='header-title'>Customer Retention &amp; Growth Engine</div>
+            <div class='header-subtitle'>
+                Centralize account health, renewal risk, customer ownership, and action planning in one
+                workspace built for CSM leads and frontline execution.
+            </div>
+            <div class='header-chip-row'>
+                <div class='header-chip'>Retention Operations</div>
+                <div class='header-chip'>Renewal Visibility</div>
+                <div class='header-chip'>CSM Assignment Control</div>
+                <div class='header-chip'>AI Copilot Connected</div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    if st.session_state.user_type == "premium":
+        master_meta = get_master_dataset_meta()
+        if master_meta:
+            st.markdown(
+                f"<span class='data-source-badge'>Data Source: Company Master ({escape(str(master_meta['source_name']))})</span>",
+                unsafe_allow_html=True,
+            )
 st.markdown("---")
 st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
 
@@ -3509,6 +3591,7 @@ if st.session_state.user_type == "premium":
 # OVERVIEW
 # =============================
 
+st.markdown("<div id='section-customer-overview'></div>", unsafe_allow_html=True)
 st.subheader("Customer Overview")
 
 if st.session_state.user_type == "premium":
@@ -3558,6 +3641,7 @@ if st.session_state.get("ai_summary_for_customer") != summary_key:
     st.session_state["ai_summary_for_customer"] = summary_key
 
 if st.session_state.user_type == "premium":
+    st.markdown("<div id='section-portfolio-snapshot'></div>", unsafe_allow_html=True)
     st.subheader("CSM Lead Portfolio Snapshot")
     portfolio_total = int(len(scoped_df))
     portfolio_high = int((scoped_df["risk_level"] == "High Risk").sum()) if portfolio_total else 0
@@ -3630,6 +3714,7 @@ if st.session_state.user_type == "premium":
     st.markdown("---")
 
     render_renewal_risk_widgets(scoped_df)
+    st.markdown("<div id='section-priority-accounts'></div>", unsafe_allow_html=True)
     st.subheader("Priority Accounts This Week")
     top_action_df = build_action_table(scoped_df, limit=10)
     render_priority_accounts_table(top_action_df)
@@ -3693,6 +3778,7 @@ if st.session_state.user_type == "premium":
 # AI EXECUTIVE SUMMARY
 # =============================
 
+st.markdown("<div id='section-ai-summary'></div>", unsafe_allow_html=True)
 st.subheader("AI Executive Summary")
 
 if st.session_state.user_type == "demo":
@@ -3725,6 +3811,7 @@ else:
 # TASK TRACKER (UNCHANGED)
 # =============================
 
+st.markdown("<div id='section-task-tracker'></div>", unsafe_allow_html=True)
 st.subheader("Task Tracker")
 user_key = get_user_key()
 
