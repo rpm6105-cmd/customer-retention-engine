@@ -507,25 +507,87 @@ div[data-testid="stFileUploaderFileData"] {
 
 .copilot-link-card {
     margin-top: 12px;
-    margin-bottom: 10px;
-    padding: 16px 18px;
-    border-radius: 14px;
-    border: 1px solid #c8dbf2;
-    background: linear-gradient(135deg, var(--copilot-start) 0%, var(--copilot-end) 100%);
-    box-shadow: 0 12px 24px rgba(29, 76, 124, 0.08);
+    margin-bottom: 14px;
+    padding: 24px 24px 22px 24px;
+    border-radius: 18px;
+    border: 1px solid #8dbce8;
+    background:
+        radial-gradient(circle at top right, rgba(18, 86, 121, 0.16), transparent 28%),
+        linear-gradient(135deg, #ebf6ff 0%, #f8fbff 52%, #eef8ff 100%);
+    box-shadow: 0 22px 42px rgba(29, 76, 124, 0.14);
+    position: relative;
+    overflow: hidden;
+}
+
+.copilot-link-card::after {
+    content: "Premium Workspace";
+    position: absolute;
+    top: 14px;
+    right: 18px;
+    padding: 5px 11px;
+    border-radius: 999px;
+    background: rgba(15, 76, 92, 0.10);
+    color: #0d4250;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+}
+
+.copilot-link-kicker {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: rgba(15, 118, 110, 0.10);
+    color: #0f766e;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
 }
 
 .copilot-link-title {
-    font-size: 18px;
+    font-size: 28px;
     font-weight: 800;
     color: #113a58;
-    margin-bottom: 6px;
+    margin-bottom: 10px;
 }
 
 .copilot-link-copy {
-    color: #425b74;
-    margin-bottom: 10px;
-    line-height: 1.45;
+    color: #36506a;
+    margin-bottom: 14px;
+    line-height: 1.55;
+    max-width: 860px;
+    font-size: 16px;
+}
+
+.copilot-link-note {
+    color: #0f4c5c;
+    font-size: 14px;
+    font-weight: 700;
+    margin-top: 2px;
+}
+
+.copilot-link-cta-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid rgba(141, 188, 232, 0.55);
+}
+
+.copilot-link-cta-copy {
+    color: #214866;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.copilot-link-cta-copy strong {
+    color: #0f2f4a;
 }
 
 .suggestion-title {
@@ -2953,10 +3015,15 @@ if st.session_state.user_type == "premium":
     st.markdown(
         """
         <div class='copilot-link-card'>
-            <div class='copilot-link-title'>Customer Success AI Copilot</div>
+            <div class='copilot-link-kicker'>Shared Intelligence Layer</div>
+            <div class='copilot-link-title'>Open Customer Success AI Copilot</div>
             <div class='copilot-link-copy'>
-                Open the AI Copilot to review the same customer portfolio through churn prediction,
-                expansion intelligence, and AI-generated next best actions.
+                Jump straight into the AI workspace for this same customer portfolio to review churn prediction,
+                expansion opportunities, and AI-generated next best actions without uploading the data again.
+            </div>
+            <div class='copilot-link-note'>Use this when you want a faster executive view of what needs attention, what can expand, and what action a CSM should take next.</div>
+            <div class='copilot-link-cta-row'>
+                <div class='copilot-link-cta-copy'><strong>Best for:</strong> churn review, expansion review, and AI-guided account actions.</div>
             </div>
         </div>
         """,
@@ -2965,7 +3032,7 @@ if st.session_state.user_type == "premium":
     st.link_button(
         "Open CSM AI Copilot",
         CSM_AI_COPILOT_URL,
-        type="secondary",
+        type="primary",
         width="stretch",
     )
 
