@@ -291,7 +291,7 @@ div[data-testid="stAlert"] code {
 }
 
 .account-panel-shell {
-    padding: 0 0 8px 0;
+    padding: 0 0 6px 0;
     border-radius: 22px;
     border: 1px solid #d4e4f4;
     background: linear-gradient(180deg, #ffffff 0%, #f6fbff 100%);
@@ -547,24 +547,13 @@ div[data-testid="stAlert"] code {
 .account-action-stack {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 4px;
     margin: 0;
     padding: 0 18px 2px 18px;
 }
 
-.account-toolbar-label {
-    color: #53708c;
-    font-size: 12px;
-    font-weight: 800;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    margin-top: 0;
-    margin-bottom: 2px;
-    padding: 0 18px;
-}
-
 .account-center-wrap {
-    padding: 0 18px 2px 18px;
+    padding: 0 18px 0 18px;
 }
 
 [data-testid="stExpander"].account-center-expander {
@@ -575,13 +564,27 @@ div[data-testid="stAlert"] code {
 }
 
 [data-testid="stExpander"].account-center-expander details summary {
-    padding-top: 0.55rem !important;
-    padding-bottom: 0.55rem !important;
+    padding-top: 0.45rem !important;
+    padding-bottom: 0.45rem !important;
 }
 
 [data-testid="stExpander"].account-center-expander details summary p {
     color: #123a58 !important;
     font-weight: 800 !important;
+}
+
+div[data-testid="stExpander"] {
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+}
+
+div[data-testid="stButton"] {
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+}
+
+div[data-testid="stButton"] > button {
+    min-height: 44px !important;
 }
 
 /* Remove Streamlit top black header area */
@@ -3235,7 +3238,6 @@ with colB:
         """,
         unsafe_allow_html=True,
     )
-    st.markdown("<div class='account-toolbar-label'>Quick Actions</div>", unsafe_allow_html=True)
     if st.session_state.user_type == "premium" and st.session_state.user_email:
         st.markdown("<div class='account-center-wrap'>", unsafe_allow_html=True)
         with st.container():
