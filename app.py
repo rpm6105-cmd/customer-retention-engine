@@ -338,12 +338,6 @@ div[data-testid="stAlert"] code {
     margin-top: 0.45rem;
 }
 
-.sidebar-role {
-    margin-top: 0.28rem;
-    font-size: 0.85rem;
-    opacity: 0.92;
-}
-
 .sidebar-chip-row {
     display: flex;
     flex-wrap: wrap;
@@ -360,6 +354,37 @@ div[data-testid="stAlert"] code {
     font-weight: 700;
     display: inline-block;
     margin-bottom: 0;
+}
+
+.sidebar-account {
+    margin-top: 0.85rem;
+    padding: 0.9rem 1rem;
+    border-radius: 18px;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.10);
+}
+
+.sidebar-account-label {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    opacity: 0.82;
+    font-weight: 700;
+    color: #eef7ff;
+}
+
+.sidebar-account-name {
+    margin-top: 0.4rem;
+    font-size: 1.2rem;
+    font-weight: 800;
+    color: #f8fcff;
+}
+
+.sidebar-account-role {
+    margin-top: 0.28rem;
+    font-size: 0.85rem;
+    opacity: 0.92;
+    color: #d8e8f7;
 }
 
 .nav-shell {
@@ -3182,6 +3207,21 @@ if "previous_snapshot_json" not in st.session_state:
 if "ai_summary_for_customer" not in st.session_state:
     st.session_state.ai_summary_for_customer = None
 
+if not st.session_state.logged_in:
+    st.markdown(
+        """
+        <style>
+        section[data-testid="stSidebar"] {
+            display: none !important;
+        }
+        [data-testid="collapsedControl"] {
+            display: none !important;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
 # =============================
 # LOGIN PAGE
 # =============================
@@ -3411,15 +3451,15 @@ if st.session_state.logged_in:
                         <span class='sidebar-badge'>AI Linked</span>
                     </div>
                 </div>
-                <div class='sidebar-hero'>
-                    <div class='sidebar-kicker'>Signed In As</div>
-                    <div class='sidebar-name'>{escape(str(st.session_state.user_name))}</div>
-                    <div class='sidebar-role'>{escape('Admin access' if st.session_state.get('user_role') == 'admin' else ('Demo access' if st.session_state.user_type == 'demo' else 'CSM access'))}</div>
+                <div class='sidebar-account'>
+                    <div class='sidebar-account-label'>Signed In As</div>
+                    <div class='sidebar-account-name'>{escape(str(st.session_state.user_name))}</div>
+                    <div class='sidebar-account-role'>{escape('Admin access' if st.session_state.get('user_role') == 'admin' else ('Demo access' if st.session_state.user_type == 'demo' else 'CSM access'))}</div>
                 </div>
                 <div class='sidebar-nav-wrap'>
                     <div class='nav-shell'>
-                    <div class='sidebar-nav-title'>Jump To Section</div>
-                    {''.join(f"<a class='sidebar-nav-link' href='#{anchor}'>{escape(label)}</a>" for label, anchor in nav_links)}
+                        <div class='sidebar-nav-title'>Jump To Section</div>
+                        {''.join(f"<a class='sidebar-nav-link' href='#{anchor}'>{escape(label)}</a>" for label, anchor in nav_links)}
                     </div>
                 </div>
             </div>
