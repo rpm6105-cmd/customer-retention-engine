@@ -590,6 +590,40 @@ div[data-testid="stFileUploaderFileData"] {
     color: #0f2f4a;
 }
 
+.copilot-shortcut-banner {
+    margin-top: 12px;
+    margin-bottom: 18px;
+    padding: 18px 20px;
+    border-radius: 16px;
+    border: 1px solid #b8d7f2;
+    background:
+        radial-gradient(circle at left center, rgba(20, 102, 153, 0.12), transparent 22%),
+        linear-gradient(135deg, #f7fbff 0%, #eef7ff 100%);
+    box-shadow: 0 14px 28px rgba(30, 76, 122, 0.10);
+}
+
+.copilot-shortcut-kicker {
+    color: #0f766e;
+    font-size: 12px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin-bottom: 6px;
+}
+
+.copilot-shortcut-title {
+    color: #123a58;
+    font-size: 22px;
+    font-weight: 800;
+    margin-bottom: 6px;
+}
+
+.copilot-shortcut-copy {
+    color: #3d5873;
+    font-size: 15px;
+    line-height: 1.5;
+}
+
 .suggestion-title {
     font-weight: 800;
     color: #0f4c5c;
@@ -2936,6 +2970,29 @@ if st.session_state.user_type == "premium":
     if st.session_state.get("last_upload_quality"):
         render_data_quality_panel(st.session_state["last_upload_quality"])
     update_snapshot_state(df)
+    shortcut_col, button_col = st.columns([4.5, 1.5])
+    with shortcut_col:
+        st.markdown(
+            """
+            <div class='copilot-shortcut-banner'>
+                <div class='copilot-shortcut-kicker'>Premium Shortcut</div>
+                <div class='copilot-shortcut-title'>Open the shared CSM AI Copilot workspace</div>
+                <div class='copilot-shortcut-copy'>
+                    Review the same customer portfolio inside the AI Copilot for churn prediction,
+                    expansion signals, and recommended next best actions.
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with button_col:
+        st.markdown("<div style='height: 24px;'></div>", unsafe_allow_html=True)
+        st.link_button(
+            "Launch Copilot",
+            CSM_AI_COPILOT_URL,
+            type="primary",
+            width="stretch",
+        )
 
 # =============================
 # OVERVIEW
