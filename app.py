@@ -682,10 +682,11 @@ div[data-testid="stFileUploaderFileData"] {
 
 div[data-baseweb="input"] > div,
 div[data-baseweb="base-input"] > div {
-    border-radius: 16px !important;
-    border: 1px solid #cddced !important;
-    background: #ffffff !important;
-    box-shadow: 0 8px 18px rgba(18, 57, 100, 0.04) !important;
+    min-height: 58px !important;
+    border-radius: 18px !important;
+    border: 1px solid #d4e2f0 !important;
+    background: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(248,251,255,0.98) 100%) !important;
+    box-shadow: 0 12px 24px rgba(18, 57, 100, 0.06) !important;
     overflow: hidden !important;
 }
 
@@ -693,6 +694,7 @@ div[data-baseweb="input"] input,
 div[data-baseweb="base-input"] input {
     color: #0f172a !important;
     font-weight: 600 !important;
+    font-size: 16px !important;
 }
 
 div[data-baseweb="input"] > div > div,
@@ -705,27 +707,33 @@ div[data-baseweb="base-input"] {
 }
 
 div[data-baseweb="base-input"] button {
-    margin: 0 8px 0 0 !important;
+    margin: 0 12px 0 0 !important;
     border-radius: 999px !important;
-    background: rgba(15, 118, 110, 0.10) !important;
+    background: transparent !important;
     border: 0 !important;
-    min-width: 34px !important;
-    width: 34px !important;
-    height: 34px !important;
+    min-width: 36px !important;
+    width: 36px !important;
+    height: 36px !important;
     box-shadow: none !important;
 }
 
 div[data-baseweb="base-input"] button:hover {
-    background: rgba(15, 118, 110, 0.16) !important;
+    background: rgba(15, 118, 110, 0.08) !important;
 }
 
 div[data-baseweb="base-input"] button svg {
-    fill: #0f766e !important;
+    fill: #35506b !important;
 }
 
 div[data-baseweb="base-input"] [role="button"],
 div[data-baseweb="base-input"] [type="button"] {
     background: transparent !important;
+}
+
+div[data-baseweb="input"] > div:focus-within,
+div[data-baseweb="base-input"] > div:focus-within {
+    border-color: #9fc4ea !important;
+    box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.08), 0 12px 24px rgba(18, 57, 100, 0.08) !important;
 }
 
 div[data-baseweb="input"] {
