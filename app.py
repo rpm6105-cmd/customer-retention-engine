@@ -4,6 +4,7 @@ import sqlite3
 import requests
 import uuid
 import hashlib
+import os
 from html import escape
 from datetime import datetime, date, timedelta
 from io import StringIO
@@ -12,6 +13,11 @@ import urllib.parse
 from pathlib import Path
 
 st.set_page_config(page_title="Customer Retention & Growth Engine", layout="wide")
+
+CSM_AI_COPILOT_URL = os.getenv(
+    "CSM_AI_COPILOT_URL",
+    "https://customer-success-ai-copilot.streamlit.app",
+)
 
 # =============================
 # COOL SAAS UI THEME
@@ -31,6 +37,8 @@ st.markdown("""
     --brand-hover: #0b5f5a;
     --danger: #b42318;
     --danger-hover: #8f1f17;
+    --copilot-start: #eef6ff;
+    --copilot-end: #f6fbff;
 }
 
 /* Background */
@@ -495,6 +503,29 @@ div[data-testid="stFileUploaderFileData"] {
     border-radius: 12px;
     border: 1px solid #c9ddf5;
     background: #f8fbff;
+}
+
+.copilot-link-card {
+    margin-top: 12px;
+    margin-bottom: 10px;
+    padding: 16px 18px;
+    border-radius: 14px;
+    border: 1px solid #c8dbf2;
+    background: linear-gradient(135deg, var(--copilot-start) 0%, var(--copilot-end) 100%);
+    box-shadow: 0 12px 24px rgba(29, 76, 124, 0.08);
+}
+
+.copilot-link-title {
+    font-size: 18px;
+    font-weight: 800;
+    color: #113a58;
+    margin-bottom: 6px;
+}
+
+.copilot-link-copy {
+    color: #425b74;
+    margin-bottom: 10px;
+    line-height: 1.45;
 }
 
 .suggestion-title {
@@ -2841,6 +2872,25 @@ if st.session_state.user_type == "premium":
         )
     snapshot_html += "</div>"
     st.markdown(snapshot_html, unsafe_allow_html=True)
+
+    st.markdown(
+        """
+        <div class='copilot-link-card'>
+            <div class='copilot-link-title'>Customer Success AI Copilot</div>
+            <div class='copilot-link-copy'>
+                Open the AI Copilot to review the same customer portfolio through churn prediction,
+                expansion intelligence, and AI-generated next best actions.
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.link_button(
+        "Open CSM AI Copilot",
+        CSM_AI_COPILOT_URL,
+        type="secondary",
+        width="stretch",
+    )
 
     owner_rollup = (
         scoped_df.groupby("owner", as_index=False)
