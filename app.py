@@ -223,6 +223,113 @@ div[data-testid="stAlert"] code {
     border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
+.header-hero {
+    padding: 28px 30px;
+    border-radius: 24px;
+    border: 1px solid #cae0f6;
+    background:
+        radial-gradient(circle at top left, rgba(14, 116, 144, 0.14), transparent 24%),
+        radial-gradient(circle at right center, rgba(29, 78, 216, 0.10), transparent 20%),
+        linear-gradient(145deg, #f7fbff 0%, #eef6ff 52%, #f9fcff 100%);
+    box-shadow: 0 24px 46px rgba(22, 65, 110, 0.10);
+}
+
+.header-kicker {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: rgba(15, 118, 110, 0.10);
+    color: #0f766e;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.header-title {
+    margin-top: 18px;
+    color: #0f2442;
+    font-size: 58px;
+    line-height: 1.02;
+    font-weight: 900;
+    letter-spacing: -0.03em;
+}
+
+.header-subtitle {
+    margin-top: 14px;
+    max-width: 860px;
+    color: #425b74;
+    font-size: 18px;
+    line-height: 1.55;
+}
+
+.header-chip-row {
+    margin-top: 18px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.header-chip {
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.7);
+    border: 1px solid #d7e6f7;
+    color: #214866;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.account-panel {
+    padding: 22px 22px 18px 22px;
+    border-radius: 22px;
+    border: 1px solid #d4e4f4;
+    background: linear-gradient(180deg, #ffffff 0%, #f6fbff 100%);
+    box-shadow: 0 18px 34px rgba(21, 61, 104, 0.08);
+}
+
+.account-panel-label {
+    color: #0f766e;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.account-panel-name {
+    margin-top: 8px;
+    color: #0f2442;
+    font-size: 19px;
+    font-weight: 800;
+    line-height: 1.3;
+}
+
+.account-panel-role {
+    margin-top: 6px;
+    color: #53708c;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.account-panel-spacer {
+    height: 10px;
+}
+
+.data-status-card {
+    margin-top: 14px;
+    margin-bottom: 8px;
+    padding: 14px 16px;
+    border-radius: 16px;
+    border: 1px solid #bde6d5;
+    background: linear-gradient(180deg, #f3fff8 0%, #ebfbf3 100%);
+    color: #14532d;
+    font-size: 15px;
+    font-weight: 700;
+    box-shadow: 0 12px 24px rgba(20, 83, 45, 0.07);
+}
+
 /* Remove Streamlit top black header area */
 header[data-testid="stHeader"] {
     display: none !important;
@@ -2666,7 +2773,25 @@ if not st.session_state.logged_in:
 colA, colB = st.columns([7, 3])
 
 with colA:
-    st.title("Customer Retention & Growth Engine")
+    st.markdown(
+        """
+        <div class='header-hero'>
+            <div class='header-kicker'>Premium CX Workspace</div>
+            <div class='header-title'>Customer Retention &amp; Growth Engine</div>
+            <div class='header-subtitle'>
+                Centralize account health, renewal risk, customer ownership, and action planning in one
+                workspace built for CSM leads and frontline execution.
+            </div>
+            <div class='header-chip-row'>
+                <div class='header-chip'>Retention Operations</div>
+                <div class='header-chip'>Renewal Visibility</div>
+                <div class='header-chip'>CSM Assignment Control</div>
+                <div class='header-chip'>AI Copilot Connected</div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
     if st.session_state.user_type == "premium":
         master_meta = get_master_dataset_meta()
         if master_meta:
@@ -2680,7 +2805,17 @@ with colB:
         role_label = "Demo"
     else:
         role_label = "Admin" if st.session_state.get("user_role") == "admin" else "CSM"
-    st.write(f"👤 {st.session_state.user_name} ({role_label})")
+    st.markdown(
+        f"""
+        <div class='account-panel'>
+            <div class='account-panel-label'>Signed In As</div>
+            <div class='account-panel-name'>{escape(str(st.session_state.user_name))}</div>
+            <div class='account-panel-role'>{escape(role_label)} access</div>
+            <div class='account-panel-spacer'></div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
     if st.session_state.user_type == "premium" and st.session_state.user_email:
         with st.popover("Account"):
             profile = get_user_profile(st.session_state.user_email)
@@ -2728,8 +2863,8 @@ with colB:
     if st.button("Logout"):
         st.session_state.clear()
         st.rerun()
-
 st.markdown("---")
+st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
 
 # Self-help floating widget (bottom-right) - render before data gating
 template_headers = [
@@ -2795,7 +2930,10 @@ else:
     if master_df is not None:
         df = master_df
         st.session_state["last_upload_quality"] = build_data_quality_summary(df, Path(master_path).name)
-        st.success(f"Master dataset loaded: {master_path}")
+        st.markdown(
+            f"<div class='data-status-card'>Master dataset ready: DB Master ({escape(Path(master_path).name)})</div>",
+            unsafe_allow_html=True,
+        )
     else:
         if master_error:
             st.warning(f"Master dataset could not be loaded: {master_error}")
