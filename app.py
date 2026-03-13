@@ -283,15 +283,15 @@ div[data-testid="stAlert"] code {
 }
 
 .account-panel {
-    padding: 22px 22px 18px 22px;
+    padding: 18px 22px 10px 22px;
     border-radius: 22px;
-    border: 1px solid #d4e4f4;
-    background: linear-gradient(180deg, #ffffff 0%, #f6fbff 100%);
-    box-shadow: 0 18px 34px rgba(21, 61, 104, 0.08);
+    border: 0;
+    background: transparent;
+    box-shadow: none;
 }
 
 .account-panel-shell {
-    padding: 0 0 14px 0;
+    padding: 0 0 8px 0;
     border-radius: 22px;
     border: 1px solid #d4e4f4;
     background: linear-gradient(180deg, #ffffff 0%, #f6fbff 100%);
@@ -323,7 +323,7 @@ div[data-testid="stAlert"] code {
 }
 
 .account-panel-spacer {
-    height: 10px;
+    height: 0;
 }
 
 .landing-hero {
@@ -547,9 +547,9 @@ div[data-testid="stAlert"] code {
 .account-action-stack {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 6px;
     margin: 0;
-    padding: 0 18px 0 18px;
+    padding: 0 18px 2px 18px;
 }
 
 .account-toolbar-label {
@@ -559,12 +559,12 @@ div[data-testid="stAlert"] code {
     letter-spacing: 0.04em;
     text-transform: uppercase;
     margin-top: 0;
-    margin-bottom: 6px;
+    margin-bottom: 2px;
     padding: 0 18px;
 }
 
 .account-center-wrap {
-    padding: 0 18px 8px 18px;
+    padding: 0 18px 2px 18px;
 }
 
 [data-testid="stExpander"].account-center-expander {
@@ -575,8 +575,8 @@ div[data-testid="stAlert"] code {
 }
 
 [data-testid="stExpander"].account-center-expander details summary {
-    padding-top: 0.85rem !important;
-    padding-bottom: 0.85rem !important;
+    padding-top: 0.55rem !important;
+    padding-bottom: 0.55rem !important;
 }
 
 [data-testid="stExpander"].account-center-expander details summary p {
