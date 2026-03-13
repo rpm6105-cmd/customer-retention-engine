@@ -713,6 +713,11 @@ section[data-testid="stSidebar"] {
     display: none !important;
 }
 
+section[data-testid="stSidebar"] [data-testid="stSidebarCollapseButton"],
+section[data-testid="stSidebar"] button[kind="header"] {
+    display: none !important;
+}
+
 section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p,
 section[data-testid="stSidebar"] label,
 section[data-testid="stSidebar"] .stCaptionContainer {
@@ -745,24 +750,7 @@ section[data-testid="stSidebar"] button * {
 }
 
 [data-testid="collapsedControl"] {
-    display: flex !important;
-    position: fixed;
-    top: 0.9rem;
-    left: 0.9rem;
-    z-index: 1001;
-    border-radius: 999px;
-    background: rgba(255,255,255,0.94) !important;
-    border: 1px solid #dbe5f3 !important;
-    box-shadow: 0 10px 20px rgba(32, 49, 79, 0.12) !important;
-}
-
-[data-testid="collapsedControl"]:hover {
-    background: #ffffff !important;
-    border-color: #c9d9ea !important;
-}
-
-[data-testid="collapsedControl"] svg {
-    fill: #0f766e !important;
+    display: none !important;
 }
 
 div[data-testid="stToolbar"] {
@@ -3417,7 +3405,6 @@ if st.session_state.logged_in:
                     <div class='nav-shell'>
                     <div class='sidebar-nav-title'>Jump To Section</div>
                     {''.join(f"<a class='sidebar-nav-link' href='#{anchor}'>{escape(label)}</a>" for label, anchor in nav_links)}
-                    <div class='nav-tip'>If the sidebar is collapsed, use the small top-left control to reopen it.</div>
                     </div>
                 </div>
             </div>
