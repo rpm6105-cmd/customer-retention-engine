@@ -306,15 +306,15 @@ div[data-testid="stAlert"] code {
 .sidebar-shell {
     padding: 18px 16px 16px 16px;
     border-radius: 22px;
-    border: 1px solid rgba(201, 222, 242, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.10);
     background:
-        radial-gradient(circle at top right, rgba(15, 118, 110, 0.16), transparent 28%),
-        linear-gradient(180deg, rgba(247, 251, 255, 0.96) 0%, rgba(238, 246, 255, 0.96) 100%);
-    box-shadow: 0 20px 38px rgba(18, 57, 100, 0.10);
+        radial-gradient(circle at top right, rgba(120, 197, 214, 0.16), transparent 28%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.04) 100%);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
 }
 
 .sidebar-kicker {
-    color: #0f766e;
+    color: #9be7d1;
     font-size: 11px;
     font-weight: 800;
     letter-spacing: 0.06em;
@@ -323,7 +323,7 @@ div[data-testid="stAlert"] code {
 
 .sidebar-name {
     margin-top: 8px;
-    color: #0f2442;
+    color: #f8fcff;
     font-size: 24px;
     font-weight: 900;
     line-height: 1.1;
@@ -331,7 +331,7 @@ div[data-testid="stAlert"] code {
 
 .sidebar-role {
     margin-top: 6px;
-    color: #55718c;
+    color: #c8daec;
     font-size: 13px;
     font-weight: 700;
 }
@@ -339,11 +339,11 @@ div[data-testid="stAlert"] code {
 .sidebar-nav-wrap {
     margin-top: 16px;
     padding-top: 16px;
-    border-top: 1px solid #d5e3f1;
+    border-top: 1px solid rgba(255,255,255,0.10);
 }
 
 .sidebar-nav-title {
-    color: #35506b;
+    color: #dcebfb;
     font-size: 12px;
     font-weight: 800;
     letter-spacing: 0.05em;
@@ -356,9 +356,9 @@ div[data-testid="stAlert"] code {
     margin-bottom: 8px;
     padding: 10px 12px;
     border-radius: 14px;
-    border: 1px solid #d5e3f1;
-    background: rgba(255, 255, 255, 0.72);
-    color: #184061 !important;
+    border: 1px solid rgba(255,255,255,0.12);
+    background: rgba(255, 255, 255, 0.08);
+    color: #f4f9ff !important;
     font-size: 14px;
     font-weight: 700;
     text-decoration: none !important;
@@ -366,8 +366,8 @@ div[data-testid="stAlert"] code {
 }
 
 .sidebar-nav-link:hover {
-    border-color: #98c3eb;
-    box-shadow: 0 10px 22px rgba(18, 57, 100, 0.08);
+    border-color: rgba(255,255,255,0.22);
+    box-shadow: 0 10px 22px rgba(4, 15, 31, 0.24);
     transform: translateY(-1px);
 }
 
@@ -671,10 +671,6 @@ section[data-testid="stSidebar"] {
     border-right: 1px solid rgba(255,255,255,0.08) !important;
 }
 
-section[data-testid="stSidebar"] * {
-    color: #eef7ff !important;
-}
-
 section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p,
 section[data-testid="stSidebar"] label,
 section[data-testid="stSidebar"] .stCaptionContainer {
@@ -716,6 +712,11 @@ section[data-testid="stSidebar"] button * {
     background: rgba(255,255,255,0.94) !important;
     border: 1px solid #dbe5f3 !important;
     box-shadow: 0 10px 20px rgba(32, 49, 79, 0.12) !important;
+}
+
+[data-testid="collapsedControl"]:hover {
+    background: #ffffff !important;
+    border-color: #c9d9ea !important;
 }
 
 [data-testid="collapsedControl"] svg {
