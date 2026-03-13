@@ -27,10 +27,11 @@ def render_login_shell() -> None:
         section[data-testid="stSidebar"] { display:none !important; }
         [data-testid="collapsedControl"] { display:none !important; }
         </style>
-        <div class='hero-card' style='padding:2rem 2.15rem;border-radius:28px'>
-          <div style='display:inline-flex;padding:0.45rem 0.8rem;border-radius:999px;background:rgba(12,92,114,0.08);color:#0c5c72;font-size:0.74rem;font-weight:800;letter-spacing:0.08em;text-transform:uppercase'>Customer Success Platform</div>
-          <div style='margin-top:1rem;color:#162033;font-size:3.2rem;line-height:1;font-weight:900;letter-spacing:-0.04em;max-width:980px'>CX Retention Engine</div>
-          <div style='margin-top:1rem;max-width:820px;color:#5c687d;font-size:1.05rem;line-height:1.65'>A modular customer success operations workspace for retention risk, renewals, portfolio ownership, and executive visibility.</div>
+        <div class='auth-shell'>
+        <div class='auth-hero'>
+          <div class='auth-kicker'>Customer Success Platform</div>
+          <div class='auth-title'>CX Retention Engine</div>
+          <div class='auth-sub'>A modular customer success operations workspace for retention risk, renewals, portfolio ownership, and executive visibility.</div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -40,7 +41,9 @@ def render_login_shell() -> None:
         st.session_state["retention_auth_mode"] = "Login"
         st.session_state.force_login_view = False
 
+    st.markdown("<div class='auth-toggle-shell'>", unsafe_allow_html=True)
     mode = st.radio("Access", ["Login", "Sign Up"], horizontal=True, key="retention_auth_mode")
+    st.markdown("</div>", unsafe_allow_html=True)
 
     if st.session_state.signup_success:
         st.success(st.session_state.signup_success)
@@ -49,7 +52,18 @@ def render_login_shell() -> None:
     if mode == "Login":
         col1, col2 = st.columns(2)
         with col1:
-            st.markdown("### Try Demo")
+            st.markdown(
+                """
+                <div class='auth-card auth-card-demo'>
+                  <div class='auth-card-kicker'>Explore The Product</div>
+                  <div class='auth-card-title'>Try Demo</div>
+                  <div class='auth-card-copy'>
+                    Use the sample workspace to explore dashboards, tasks, renewals, and portfolio monitoring without uploading your own master dataset.
+                  </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
             demo_user = st.text_input("Username", key="demo_user")
             demo_password = st.text_input("Password", type="password", key="demo_password")
             if st.button("Login Demo"):
@@ -62,7 +76,18 @@ def render_login_shell() -> None:
                     st.rerun()
                 st.error("Invalid demo credentials")
         with col2:
-            st.markdown("### Premium Login")
+            st.markdown(
+                """
+                <div class='auth-card auth-card-premium'>
+                  <div class='auth-card-kicker'>Premium Workspace</div>
+                  <div class='auth-card-title'>Use My Account</div>
+                  <div class='auth-card-copy'>
+                    Sign in to manage the live company master dataset, assign CSM ownership, review renewal exposure, and run the full retention workspace.
+                  </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
             email = st.text_input("Email", key="premium_email")
             password = st.text_input("Password", type="password", key="premium_password")
             if st.button("Login Premium"):
@@ -78,7 +103,18 @@ def render_login_shell() -> None:
     else:
         _, mid, _ = st.columns([1, 1.15, 1])
         with mid:
-            st.markdown("### Create Premium Workspace")
+            st.markdown(
+                """
+                <div class='auth-card auth-card-premium'>
+                  <div class='auth-card-kicker'>Premium Onboarding</div>
+                  <div class='auth-card-title'>Create your retention workspace</div>
+                  <div class='auth-card-copy'>
+                    Set up an admin or CSM account for your company domain and start running the Customer Success operations workspace from one shared platform.
+                  </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
             name = st.text_input("Name", key="signup_name")
             company = st.text_input("Company", key="signup_company")
             email = st.text_input("Email", key="signup_email")
@@ -103,4 +139,5 @@ def render_login_shell() -> None:
                         )
                         st.rerun()
                     st.error(message)
+    st.markdown("</div>", unsafe_allow_html=True)
     st.stop()
