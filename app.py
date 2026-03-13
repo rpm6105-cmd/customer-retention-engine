@@ -290,6 +290,15 @@ div[data-testid="stAlert"] code {
     box-shadow: 0 18px 34px rgba(21, 61, 104, 0.08);
 }
 
+.account-panel-shell {
+    padding: 0 0 14px 0;
+    border-radius: 22px;
+    border: 1px solid #d4e4f4;
+    background: linear-gradient(180deg, #ffffff 0%, #f6fbff 100%);
+    box-shadow: 0 18px 34px rgba(21, 61, 104, 0.08);
+    overflow: hidden;
+}
+
 .account-panel-label {
     color: #0f766e;
     font-size: 12px;
@@ -539,7 +548,8 @@ div[data-testid="stAlert"] code {
     display: flex;
     flex-direction: column;
     gap: 10px;
-    margin-top: 12px;
+    margin: 0;
+    padding: 0 18px 0 18px;
 }
 
 .account-toolbar-label {
@@ -548,8 +558,9 @@ div[data-testid="stAlert"] code {
     font-weight: 800;
     letter-spacing: 0.04em;
     text-transform: uppercase;
-    margin-top: 14px;
+    margin-top: 0;
     margin-bottom: 6px;
+    padding: 0 18px;
 }
 
 /* Remove Streamlit top black header area */
@@ -583,12 +594,33 @@ div[data-baseweb="base-input"] > div {
     border: 1px solid #cddced !important;
     background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%) !important;
     box-shadow: 0 10px 22px rgba(18, 57, 100, 0.05) !important;
+    overflow: hidden !important;
 }
 
 div[data-baseweb="input"] input,
 div[data-baseweb="base-input"] input {
     color: #0f172a !important;
     font-weight: 600 !important;
+}
+
+div[data-baseweb="base-input"] {
+    background: transparent !important;
+}
+
+div[data-baseweb="base-input"] button {
+    margin: 6px !important;
+    border-radius: 14px !important;
+    background: linear-gradient(135deg, #0f766e 0%, #2c7a7b 100%) !important;
+    border: 0 !important;
+    min-width: 60px !important;
+}
+
+div[data-baseweb="base-input"] button:hover {
+    background: linear-gradient(135deg, #0d5f59 0%, #245f61 100%) !important;
+}
+
+div[data-baseweb="base-input"] button svg {
+    fill: #ffffff !important;
 }
 
 .help-widget {
@@ -3113,6 +3145,7 @@ with colB:
         role_label = "Demo"
     else:
         role_label = "Admin" if st.session_state.get("user_role") == "admin" else "CSM"
+    st.markdown("<div class='account-panel-shell'>", unsafe_allow_html=True)
     st.markdown(
         f"""
         <div class='account-panel'>
@@ -3173,6 +3206,7 @@ with colB:
     if st.button("Logout", type="primary"):
         st.session_state.clear()
         st.rerun()
+    st.markdown("</div>", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 st.markdown("---")
 st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
