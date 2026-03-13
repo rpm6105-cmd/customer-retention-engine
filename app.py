@@ -12,7 +12,11 @@ import textwrap
 import urllib.parse
 from pathlib import Path
 
-st.set_page_config(page_title="Customer Retention & Growth Engine", layout="wide")
+st.set_page_config(
+    page_title="Customer Retention & Growth Engine",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
 
 CSM_AI_COPILOT_URL = os.getenv(
     "CSM_AI_COPILOT_URL",
@@ -658,6 +662,64 @@ div[data-testid="stButton"] > button {
 /* Remove Streamlit top black header area */
 header[data-testid="stHeader"] {
     display: none !important;
+}
+
+section[data-testid="stSidebar"] {
+    background:
+        radial-gradient(circle at top right, rgba(69, 148, 182, 0.22), transparent 30%),
+        linear-gradient(180deg, #11364a 0%, #0d2232 100%) !important;
+    border-right: 1px solid rgba(255,255,255,0.08) !important;
+}
+
+section[data-testid="stSidebar"] * {
+    color: #eef7ff !important;
+}
+
+section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p,
+section[data-testid="stSidebar"] label,
+section[data-testid="stSidebar"] .stCaptionContainer {
+    color: #eef7ff !important;
+}
+
+section[data-testid="stSidebar"] .stButton > button,
+section[data-testid="stSidebar"] .stDownloadButton > button,
+section[data-testid="stSidebar"] button[kind="primary"],
+section[data-testid="stSidebar"] button[kind="secondary"] {
+    background: rgba(255,255,255,0.14) !important;
+    border: 1px solid rgba(255,255,255,0.18) !important;
+    color: #f8fcff !important;
+    border-radius: 16px !important;
+    min-height: 48px !important;
+    box-shadow: none !important;
+}
+
+section[data-testid="stSidebar"] .stButton > button:hover,
+section[data-testid="stSidebar"] .stDownloadButton > button:hover,
+section[data-testid="stSidebar"] button[kind="primary"]:hover,
+section[data-testid="stSidebar"] button[kind="secondary"]:hover {
+    background: rgba(255,255,255,0.22) !important;
+    border-color: rgba(255,255,255,0.24) !important;
+}
+
+section[data-testid="stSidebar"] button * {
+    color: #f8fcff !important;
+    fill: #f8fcff !important;
+}
+
+[data-testid="collapsedControl"] {
+    display: flex !important;
+    position: fixed;
+    top: 0.9rem;
+    left: 0.9rem;
+    z-index: 1001;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.94) !important;
+    border: 1px solid #dbe5f3 !important;
+    box-shadow: 0 10px 20px rgba(32, 49, 79, 0.12) !important;
+}
+
+[data-testid="collapsedControl"] svg {
+    fill: #0f766e !important;
 }
 
 div[data-testid="stToolbar"] {
