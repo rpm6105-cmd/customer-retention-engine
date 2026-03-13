@@ -1351,6 +1351,38 @@ def ensure_schema_migrations():
     conn.commit()
 
 
+def seed_demo_premium_account():
+    demo_name = "Rohith PM"
+    demo_company = "RPM"
+    demo_email = "rpm6105@gmail.com"
+    demo_place = "India"
+    demo_password = "123456"
+
+    existing = c.execute(
+        "SELECT email, role FROM users WHERE lower(email) = ?",
+        (demo_email.lower(),),
+    ).fetchone()
+
+    if existing:
+        c.execute(
+            """
+            UPDATE users
+            SET name = ?, company = ?, place = ?, password = ?, role = 'admin'
+            WHERE lower(email) = ?
+            """,
+            (demo_name, demo_company, demo_place, demo_password, demo_email.lower()),
+        )
+    else:
+        c.execute(
+            """
+            INSERT INTO users (name, company, email, place, password, role)
+            VALUES (?, ?, ?, ?, ?, 'admin')
+            """,
+            (demo_name, demo_company, demo_email.lower(), demo_place, demo_password),
+        )
+    conn.commit()
+
+
 def email_domain(email: str) -> str:
     parts = (email or "").split("@")
     return parts[1].lower().strip() if len(parts) == 2 else ""
@@ -1419,6 +1451,7 @@ def filter_visible_accounts(df_input: pd.DataFrame, user_email: str, user_role: 
 
 
 ensure_schema_migrations()
+seed_demo_premium_account()
 conn.commit()
 
 
