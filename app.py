@@ -1307,6 +1307,83 @@ def prepare_integrated_customer_df(full_df: pd.DataFrame):
         "health_score",
         "feature_adoption_score",
     ]
+    copilot_required = [
+        "Account_Name",
+        "ARR",
+        "Active_Users",
+        "Monthly_Logins",
+        "Feature_Usage_Score",
+        "Support_Tickets_Last_30_Days",
+        "CSAT",
+        "NPS",
+        "Last_Login_Days_Ago",
+        "Renewal_Date",
+        "Plan_Type",
+    ]
+
+    if all(col in full_df.columns for col in copilot_required):
+        df = full_df.copy()
+        df["Account_Name"] = df["Account_Name"].astype(str).str.strip()
+        numeric_cols = [
+            "ARR",
+            "Active_Users",
+            "Monthly_Logins",
+            "Feature_Usage_Score",
+            "Support_Tickets_Last_30_Days",
+            "CSAT",
+            "NPS",
+            "Last_Login_Days_Ago",
+        ]
+        for col in numeric_cols:
+            df[col] = pd.to_numeric(df[col], errors="coerce")
+        renewal_dates = pd.to_datetime(df["Renewal_Date"], errors="coerce")
+        if renewal_dates.isna().any():
+            return None, "Renewal_Date must be a valid date column."
+
+        df["customer_id"] = [
+            f"COPILOT-{str(i + 1).zfill(4)}"
+            for i in range(len(df))
+        ]
+        df["company_name"] = df["Account_Name"]
+        df["industry"] = "SaaS"
+        df["segment"] = df["ARR"].apply(
+            lambda value: "Enterprise" if value >= 150000 else ("Mid-Market" if value >= 50000 else "SMB")
+        )
+        df["employees"] = (df["Active_Users"] * 6).round(0).clip(lower=10).astype(int)
+        df["region"] = "North America"
+        df["plan_type"] = df["Plan_Type"]
+        df["contract_end"] = renewal_dates.dt.strftime("%Y-%m-%d")
+        df["contract_start"] = (renewal_dates - pd.to_timedelta(365, unit="D")).dt.strftime("%Y-%m-%d")
+        df["annual_contract_value"] = df["ARR"].round(0).astype(int)
+        df["active_users"] = df["Active_Users"].round(0).astype(int)
+        df["total_licenses"] = (df["Active_Users"] * 1.15).round(0).clip(lower=df["Active_Users"]).astype(int)
+        df["login_frequency"] = df["Monthly_Logins"].round(0).astype(int)
+        df["unused_licenses"] = (df["total_licenses"] - df["active_users"]).clip(lower=0).astype(int)
+        df["shadow_it_apps_detected"] = (
+            (df["Support_Tickets_Last_30_Days"] / 2).round(0).clip(lower=0).astype(int)
+        )
+        df["engagement_score"] = (
+            0.6 * (100 - (df["Last_Login_Days_Ago"].clip(0, 60) / 60 * 100))
+            + 0.4 * ((df["Monthly_Logins"] / df["Monthly_Logins"].max()) * 100).fillna(50)
+        ).clip(5, 100)
+        df["feature_adoption_score"] = df["Feature_Usage_Score"].clip(0, 100)
+        df["health_score"] = (
+            0.35 * df["Feature_Usage_Score"]
+            + 0.25 * ((df["CSAT"] / 10) * 100)
+            + 0.20 * (((df["NPS"] + 100) / 200) * 100)
+            + 0.20 * df["engagement_score"]
+        ).clip(5, 100)
+        df["renewal_risk_score"] = (
+            100
+            - (
+                0.45 * df["health_score"]
+                + 0.25 * df["feature_adoption_score"]
+                + 0.15 * (100 - df["Support_Tickets_Last_30_Days"].clip(0, 12) / 12 * 100)
+                + 0.15 * (100 - df["Last_Login_Days_Ago"].clip(0, 60) / 60 * 100)
+            )
+        ).clip(5, 95)
+        full_df = df[required].copy()
+
     err = validate_required_columns(full_df, required, "cx_retention_customers_full_dataset.csv")
     if err:
         return None, err
