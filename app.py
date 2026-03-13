@@ -713,15 +713,18 @@ section[data-testid="stSidebar"] {
     display: none !important;
 }
 
-section[data-testid="stSidebar"] [data-testid="stSidebarCollapseButton"],
-section[data-testid="stSidebar"] button[kind="header"] {
-    display: none !important;
-}
-
 section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p,
 section[data-testid="stSidebar"] label,
 section[data-testid="stSidebar"] .stCaptionContainer {
     color: #eef7ff !important;
+}
+
+section[data-testid="stSidebar"] [data-baseweb="select"] > div,
+section[data-testid="stSidebar"] [data-baseweb="input"] > div,
+section[data-testid="stSidebar"] [data-baseweb="base-input"] > div {
+    background: rgba(255,255,255,0.08) !important;
+    border: 1px solid rgba(255,255,255,0.12) !important;
+    box-shadow: none !important;
 }
 
 section[data-testid="stSidebar"] .stButton > button,
@@ -750,7 +753,19 @@ section[data-testid="stSidebar"] button * {
 }
 
 [data-testid="collapsedControl"] {
-    display: none !important;
+    display: flex !important;
+    position: fixed;
+    top: 0.9rem;
+    left: 0.9rem;
+    z-index: 1001;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.92);
+    border: 1px solid #dbe5f3;
+    box-shadow: 0 10px 20px rgba(32, 49, 79, 0.12);
+}
+
+[data-testid="collapsedControl"] svg {
+    fill: var(--brand);
 }
 
 div[data-testid="stToolbar"] {
