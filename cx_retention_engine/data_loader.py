@@ -26,6 +26,83 @@ REQUIRED_COLUMNS = [
     "Renewal_Date",
 ]
 
+RETENTION_MASTER_COLUMNS = [
+    "customer_id",
+    "company_name",
+    "industry",
+    "segment",
+    "employees",
+    "region",
+    "plan_type",
+    "contract_start",
+    "contract_end",
+    "annual_contract_value",
+    "total_licenses",
+    "active_users",
+    "login_frequency",
+    "unused_licenses",
+    "shadow_it_apps_detected",
+    "engagement_score",
+    "renewal_risk_score",
+    "health_score",
+    "feature_adoption_score",
+]
+
+def _normalize_retention_master(df_input: pd.DataFrame) -> tuple[pd.DataFrame | None, str | None]:
+    missing = [column for column in RETENTION_MASTER_COLUMNS if column not in df_input.columns]
+    if missing:
+        return None, f"Missing required columns: {', '.join(missing)}"
+
+    df = df_input[RETENTION_MASTER_COLUMNS].copy()
+    df["company_name"] = df["company_name"].astype(str).str.strip()
+    df = df[df["company_name"] != ""]
+
+    numeric_columns = [
+        "annual_contract_value",
+        "active_users",
+        "login_frequency",
+        "feature_adoption_score",
+        "renewal_risk_score",
+        "health_score",
+        "shadow_it_apps_detected",
+    ]
+    for column in numeric_columns:
+        df[column] = pd.to_numeric(df[column], errors="coerce")
+
+    if df[numeric_columns].isna().any().any():
+        return None, "Some numeric fields could not be parsed. Please check the uploaded CSV."
+
+    renewal_dates = pd.to_datetime(df["contract_end"], errors="coerce")
+    if renewal_dates.isna().any():
+        return None, "contract_end must be a valid date column."
+
+    normalized = pd.DataFrame()
+    normalized["Account_Name"] = df["company_name"]
+    normalized["Customer_ID"] = df["customer_id"].astype(str).str.strip()
+    normalized["CSM_Owner"] = "Unassigned"
+    normalized["ARR"] = df["annual_contract_value"].round(0).astype(int)
+    normalized["Plan_Type"] = df["plan_type"].astype(str)
+    normalized["Active_Users"] = df["active_users"].round(0).astype(int)
+    normalized["Monthly_Logins"] = df["login_frequency"].round(0).astype(int)
+    normalized["Feature_Usage_Score"] = df["feature_adoption_score"].clip(0, 100).round(1)
+    normalized["Support_Tickets_Last_30_Days"] = (
+        (df["renewal_risk_score"] / 12)
+        + (df["shadow_it_apps_detected"] / 2)
+        + ((100 - df["feature_adoption_score"]) / 25)
+    ).round(0).clip(lower=0).astype(int)
+    normalized["CSAT"] = (df["health_score"].clip(0, 100) / 10).round(1).clip(0, 10)
+    normalized["NPS"] = ((df["engagement_score"].clip(0, 100) - 50) * 2).round(1).clip(-100, 100)
+    normalized["Last_Login_Days_Ago"] = (
+        30 - ((df["login_frequency"] / df["login_frequency"].max()) * 25).fillna(12)
+    ).round(0).clip(lower=0, upper=60).astype(int)
+    normalized["Renewal_Date"] = renewal_dates.dt.strftime("%Y-%m-%d")
+
+    empty_mask = (normalized["Customer_ID"] == "") | (normalized["Customer_ID"] == "nan")
+    if empty_mask.any():
+        normalized.loc[empty_mask, "Customer_ID"] = [f"CX-A{i:04d}" for i in range(1, empty_mask.sum() + 1)]
+
+    return normalized[REQUIRED_COLUMNS].reset_index(drop=True), None
+
 DEFAULT_ADMIN = {
     "name": "Rohith PM",
     "company": "RPM",
@@ -248,13 +325,26 @@ def build_sample_csv() -> bytes:
     return generate_sample_dataset(25).to_csv(index=False).encode("utf-8")
 
 
-def validate_dataset(df: pd.DataFrame) -> tuple[pd.DataFrame | None, str | None]:
+def validate_dataset(df_input: pd.DataFrame) -> tuple[pd.DataFrame | None, str | None]:
+    if all(column in df_input.columns for column in RETENTION_MASTER_COLUMNS):
+        return _normalize_retention_master(df_input)
+
+    df = df_input.copy()
+    
+    if "Customer_ID" not in df.columns:
+        if "customer_id" in df.columns:
+            df["Customer_ID"] = df["customer_id"].astype(str).str.strip()
+        else:
+            df["Customer_ID"] = [f"CX-P{i:04d}" for i in range(1, len(df) + 1)]
+            
+    if "CSM_Owner" not in df.columns:
+        df["CSM_Owner"] = "Unassigned"
+
     missing = [col for col in REQUIRED_COLUMNS if col not in df.columns]
     if missing:
         return None, "Missing required columns: " + ", ".join(missing)
 
-    normalized = df.copy()
-    normalized = normalized[REQUIRED_COLUMNS].copy()
+    normalized = df[REQUIRED_COLUMNS].copy()
     normalized["Account_Name"] = normalized["Account_Name"].astype(str).str.strip()
     normalized["Customer_ID"] = normalized["Customer_ID"].astype(str).str.strip()
     normalized["CSM_Owner"] = normalized["CSM_Owner"].astype(str).str.strip()

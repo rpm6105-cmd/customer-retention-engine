@@ -53,9 +53,12 @@ def inject_styles() -> None:
                 linear-gradient(180deg, #10364a 0%, #0d2232 100%);
             border-right: 1px solid rgba(255,255,255,0.08);
         }
+        section[data-testid="stSidebar"] * {
+            color: var(--sidebar-ink);
+        }
         section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p,
         section[data-testid="stSidebar"] label,
-        section[data-testid="stSidebar"] .stCaptionContainer { color: var(--sidebar-ink) !important; }
+        section[data-testid="stSidebar"] .stCaptionContainer { color: var(--sidebar-ink) !important; opacity: 1 !important; }
         section[data-testid="stSidebar"] [data-baseweb="select"] > div,
         section[data-testid="stSidebar"] [data-baseweb="input"] > div,
         section[data-testid="stSidebar"] [data-baseweb="base-input"] > div {
@@ -239,7 +242,48 @@ def inject_styles() -> None:
         .nav-title { font-size:0.74rem; text-transform:uppercase; letter-spacing:0.12em; opacity:0.82; font-weight:700; margin-bottom:0.55rem; color:#eef7ff; }
         .nav-link { display:block; margin-bottom:0.55rem; padding:0.8rem 0.9rem; border-radius:16px; border:1px solid rgba(255,255,255,0.12); background:rgba(255,255,255,0.08); color:#f4f9ff !important; font-size:0.92rem; font-weight:700; text-decoration:none !important; }
         .nav-link:hover { border-color:rgba(255,255,255,0.22); box-shadow:0 10px 22px rgba(4,15,31,0.24); }
-        .auth-shell { padding: 1rem 0 2rem 0; }
+
+        /* Sledgehammer override for sidebar radio text color to match Copilot's crisp white */
+        section[data-testid="stSidebar"] [data-baseweb="radio"] p,
+        section[data-testid="stSidebar"] [data-baseweb="radio"] span,
+        section[data-testid="stSidebar"] [data-baseweb="radio"] div {
+            color: #ffffff !important;
+            font-size: 0.95rem !important;
+            font-weight: 600 !important;
+            opacity: 1 !important;
+        }
+        section[data-testid="stSidebar"] [role="radiogroup"] {
+            gap: 0.8rem !important;
+        }
+
+        .auth-shell {
+            padding: 1rem 0 2rem 0;
+        }
+        .auth-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 0.9rem;
+            margin-top: 1.25rem;
+        }
+        .auth-stat {
+            padding: 1rem;
+            border-radius: 20px;
+            border: 1px solid #d7e4f2;
+            background: rgba(255,255,255,0.74);
+        }
+        .auth-stat-value {
+            color: var(--ink);
+            font-size: 1.8rem;
+            font-weight: 900;
+            line-height: 1;
+        }
+        .auth-stat-copy {
+            color: var(--muted);
+            font-size: 0.88rem;
+            line-height: 1.5;
+            margin-top: 0.45rem;
+            font-weight: 700;
+        }
         .auth-hero {
             padding: 2rem 2.15rem;
             border-radius: 28px;
@@ -362,10 +406,10 @@ def render_metric_row(items: list[tuple[str, str, str]]) -> None:
         )
 
 
-def render_sidebar_shell(user_name: str, role_label: str, nav_items: list[str], current_module: str, copilot_url: str) -> str:
-    nav_markup = "".join(
-        f"<div class='nav-link' style='opacity:{'1' if item == current_module else '0.86'}'>{escape(item)}</div>" for item in nav_items
-    )
+def render_sidebar_shell(user_name: str, role_label: str, copilot_url: str) -> str:
+    """Render the branded top block of the sidebar (hero + account info only).
+    Navigation is handled by st.radio in app.py.
+    """
     return f"""
     <div class='sidebar-shell'>
       <div class='sidebar-hero'>
@@ -382,13 +426,6 @@ def render_sidebar_shell(user_name: str, role_label: str, nav_items: list[str], 
         <div class='sidebar-account-label'>Signed In As</div>
         <div class='sidebar-account-name'>{escape(user_name)}</div>
         <div class='sidebar-account-role'>{escape(role_label)}</div>
-      </div>
-      <div class='nav-shell'>
-        <div class='nav-title'>Workspace Modules</div>
-        {nav_markup}
-      </div>
-      <div class='nav-shell'>
-        <a class='nav-link' href='{escape(copilot_url)}' target='_blank'>Open Customer Success AI Copilot</a>
       </div>
     </div>
     """

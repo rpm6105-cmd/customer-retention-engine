@@ -207,7 +207,7 @@ def render_sidebar(df: pd.DataFrame, meta: dict | None, current_module: str) -> 
     role_label = get_role_label()
     with st.sidebar:
         st.markdown(
-            render_sidebar_shell(st.session_state.user_name, role_label, MODULES, current_module, COPILOT_URL),
+            render_sidebar_shell(st.session_state.user_name, role_label, COPILOT_URL),
             unsafe_allow_html=True,
         )
         if meta:
@@ -215,8 +215,11 @@ def render_sidebar(df: pd.DataFrame, meta: dict | None, current_module: str) -> 
         plan_options = ["All"] + sorted(df["Plan_Type"].astype(str).unique().tolist())
         risk_options = ["All", "High Risk", "Medium Risk", "Low Risk"]
         owner_options = ["All"] + sorted(df["CSM_Owner"].astype(str).unique().tolist())
-        st.markdown("### Portfolio Controls")
+        
+        st.markdown("<div class='nav-shell'><div class='nav-title'>Workspace Modules</div></div>", unsafe_allow_html=True)
         selected_module = st.radio("Module", MODULES, index=MODULES.index(current_module), key="selected_module")
+        
+        st.markdown("### Portfolio Controls")
         st.selectbox("Filter by plan", plan_options, key="filter_plan")
         st.selectbox("Filter by churn risk", risk_options, key="filter_risk")
         st.selectbox("Filter by owner", owner_options, key="filter_owner")

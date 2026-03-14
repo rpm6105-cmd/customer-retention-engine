@@ -32,6 +32,20 @@ def render_login_shell() -> None:
           <div class='auth-kicker'>Customer Success Platform</div>
           <div class='auth-title'>CX Retention Engine</div>
           <div class='auth-sub'>A modular customer success operations workspace for retention risk, renewals, portfolio ownership, and executive visibility.</div>
+          <div class='auth-grid'>
+            <div class='auth-stat'>
+              <div class='auth-stat-value'>8</div>
+              <div class='auth-stat-copy'>Workspace modules covering overview, risk, renewals, tasks, and admin ops</div>
+            </div>
+            <div class='auth-stat'>
+              <div class='auth-stat-value'>3</div>
+              <div class='auth-stat-copy'>Access roles — Admin, CSM, and Demo — each with scoped portfolio visibility</div>
+            </div>
+            <div class='auth-stat'>
+              <div class='auth-stat-value'>24/7</div>
+              <div class='auth-stat-copy'>Always-on retention workspace for portfolio monitoring and risk intervention</div>
+            </div>
+          </div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -58,23 +72,24 @@ def render_login_shell() -> None:
                   <div class='auth-card-kicker'>Explore The Product</div>
                   <div class='auth-card-title'>Try Demo</div>
                   <div class='auth-card-copy'>
-                    Use the sample workspace to explore dashboards, tasks, renewals, and portfolio monitoring without uploading your own master dataset.
+                    Use the sample workspace to explore dashboards, tasks, renewals, and portfolio monitoring without uploading your own master dataset.<br/><br/>
+                    <b>Email:</b> freeuser &nbsp;|&nbsp; <b>Password:</b> 123456
                   </div>
                 </div>
                 """,
                 unsafe_allow_html=True,
             )
-            demo_user = st.text_input("Username", key="demo_user")
-            demo_password = st.text_input("Password", type="password", key="demo_password")
-            if st.button("Login Demo"):
-                if demo_user.strip().lower() == "freeuser" and demo_password.strip() == "123456":
+            demo_email = st.text_input("Email", placeholder="freeuser", key="demo_user")
+            demo_password = st.text_input("Password", type="password", placeholder="123456", key="demo_password")
+            if st.button("Login Demo", use_container_width=True):
+                if demo_email.strip().lower() == "freeuser" and demo_password.strip() == "123456":
                     st.session_state.logged_in = True
                     st.session_state.user_type = "demo"
                     st.session_state.user_name = "Freeuser"
                     st.session_state.user_email = "demo@local"
                     st.session_state.user_role = "demo"
                     st.rerun()
-                st.error("Invalid demo credentials")
+                st.error("Invalid demo credentials. Use email: freeuser, password: 123456")
         with col2:
             st.markdown(
                 """
@@ -90,7 +105,7 @@ def render_login_shell() -> None:
             )
             email = st.text_input("Email", key="premium_email")
             password = st.text_input("Password", type="password", key="premium_password")
-            if st.button("Login Premium"):
+            if st.button("Login Premium", use_container_width=True):
                 user = get_user_by_credentials(email, password)
                 if user:
                     st.session_state.logged_in = True
@@ -121,7 +136,7 @@ def render_login_shell() -> None:
             place = st.text_input("Place", key="signup_place")
             password = st.text_input("Password", type="password", key="signup_password")
             confirm = st.text_input("Confirm Password", type="password", key="signup_confirm")
-            if st.button("Create Account"):
+            if st.button("Create Account", use_container_width=True):
                 if not name.strip() or not email.strip() or not password.strip():
                     st.error("Name, Email, and Password are required")
                 elif "@" not in email.strip():
